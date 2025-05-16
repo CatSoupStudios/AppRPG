@@ -1,4 +1,4 @@
-package com.example.solo_leveling
+package com.catsoupstudios.solo_leveling
 
 import io.flutter.embedding.android.FlutterActivity
 

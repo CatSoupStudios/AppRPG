@@ -1,7 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
 
-
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -10,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.catsoupstudios.solo_leveling"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     val keystoreProperties = Properties()
@@ -32,22 +31,13 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-
     defaultConfig {
-        applicationId = "com.catsoupstudios.solo_leveling"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-    }
+    applicationId = "com.catsoupstudios.solo_leveling"
+    minSdk = 21
+    targetSdk = 34
+    versionCode = 8
+    versionName = "1.1.4"
+}
 
     buildTypes {
         getByName("release") {
@@ -59,6 +49,15 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
     }
 }
 
