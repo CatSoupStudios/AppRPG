@@ -1,0 +1,27 @@
+# Flutter build
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+
+# Android
+android/.gradle/
+android/app/release/
+android/key.properties
+*.jks
+local.properties
+
+# iOS
+ios/Flutter/Generated.xcconfig
+ios/Pods
+Podfile.lock
+
+# IDEs
+.idea/
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db

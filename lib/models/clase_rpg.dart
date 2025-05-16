@@ -1,0 +1,33 @@
+enum ClaseRPG {
+  mago,
+  paladin,
+  barbaro,
+  nigromante,
+  picaro,
+  guardabosques,
+  hechicero,
+  invocador,
+  artificiero,
+  bardo,
+  draconido,
+  brujo,
+  asesino,
+  cazadorDeAlmas,
+}
+
+Map<ClaseRPG, String> claseEmojis = {
+  ClaseRPG.mago: "🧙 Mago",
+  ClaseRPG.paladin: "🛡️ Paladín",
+  ClaseRPG.barbaro: "👹 Bárbaro",
+  ClaseRPG.nigromante: "💀 Nigromante",
+  ClaseRPG.picaro: "🗡️ Pícaro",
+  ClaseRPG.guardabosques: "🏹 Guardabosques",
+  ClaseRPG.hechicero: "✨ Hechicero",
+  ClaseRPG.invocador: "📿 Invocador",
+  ClaseRPG.artificiero: "🛠️ Artificiero",
+  ClaseRPG.bardo: "🎵 Bardo",
+  ClaseRPG.draconido: "🐉 Dracónido",
+  ClaseRPG.brujo: "🔮 Brujo",
+  ClaseRPG.asesino: "🗡️ Asesino",
+  ClaseRPG.cazadorDeAlmas: "👁️ Cazador de Almas",
+};

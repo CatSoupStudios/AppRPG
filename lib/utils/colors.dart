@@ -1,0 +1,15 @@
+import 'package:flutter/material.dart';
+
+class AppColors {
+  // Colores claros
+  static const Color lightBackground = Colors.white;
+  static const Color lightText = Colors.black;
+  static const Color lightSecondaryText = Colors.black54;
+  static const Color lightAccent = Colors.amber;
+
+  // Colores oscuros
+  static const Color darkBackground = Colors.black;
+  static const Color darkText = Colors.white;
+  static const Color darkSecondaryText = Colors.white54;
+  static const Color darkAccent = Colors.amber;
+}
