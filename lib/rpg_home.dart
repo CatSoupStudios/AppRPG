@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/clase_rpg.dart';
 import 'data/stats_base.dart';
@@ -16,6 +15,7 @@ import 'screens/pantalla_settings.dart';
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import 'utils/colors.dart';
+import 'screens/pantalla_calendario.dart';
 
 class RPGHome extends StatefulWidget {
   const RPGHome({super.key});
@@ -157,13 +157,22 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final fechaActual = DateFormat('MM/dd/yyyy').format(DateTime.now());
     final fraseDelDia =
         frasesDiarias[DateTime.now().day % frasesDiarias.length];
     final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
+    final frasesPorStat = {
+      'fuerza': "Tu cuerpo, tu primer imperio.",
+      'inteligencia': "Los sabios también luchan.",
+      'defensa': "No todo lo que aguanta es débil.",
+      'vitalidad': "Descansa. Renace. Sigue.",
+      'suerte': "Hay quienes llaman azar a la intuición.",
+      'carisma': "Presencia que no se puede enseñar.",
+      'agilidad': "Moverse es decidir antes que el mundo.",
+    };
+
     return Scaffold(
-      backgroundColor: isDarkMode ? Colors.black : Colors.grey[200],
+      backgroundColor: isDarkMode ? Colors.black : Colors.grey[100],
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -226,22 +235,17 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                             ],
                           ),
                           if (clase != null)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(claseEmojis[clase]!,
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        color: isDarkMode
-                                            ? AppColors.darkText
-                                            : AppColors.lightText)),
-                                Text(fechaActual,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDarkMode
-                                            ? AppColors.darkSecondaryText
-                                            : AppColors.lightSecondaryText)),
-                              ],
+                            Padding(
+                              padding: const EdgeInsets.only(top: 1),
+                              child: Text(
+                                claseEmojis[clase]!,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: isDarkMode
+                                      ? AppColors.darkText
+                                      : AppColors.lightText,
+                                ),
+                              ),
                             ),
                         ],
                       ),
@@ -250,68 +254,91 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(height: 30),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  "📊 Tus Stats",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode
-                        ? AppColors.lightBackground
-                        : AppColors.lightText,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "📊 Tus Stats",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode
+                          ? AppColors.lightBackground
+                          : AppColors.lightText,
+                    ),
                   ),
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.calendar_month_rounded,
+                        color: Colors.amber),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const PantallaCalendario(),
+                      );
+                    },
+                  )
+                ],
               ),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 16,
                 runSpacing: 16,
                 children: stats.entries.map((entry) {
-                  final emoji = statEmojis[entry.key.toLowerCase()] ?? '🔹';
+                  final keyLower = entry.key.toLowerCase();
+                  final emoji = statEmojis[keyLower] ?? '🔹';
+                  final fraseStat =
+                      frasesPorStat[keyLower] ?? "Stat desbloqueado.";
+
                   return GestureDetector(
                     onTap: () => abrirPantallaStat(entry.key),
                     child: Container(
                       width: MediaQuery.of(context).size.width * 0.42,
-                      padding: const EdgeInsets.all(16),
+                      constraints: const BoxConstraints(minHeight: 170),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
+                        color: isDarkMode
+                            ? Colors.white.withOpacity(0.03)
+                            : Colors.white.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(26),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                         border: Border.all(
-                            color: isDarkMode
-                                ? AppColors.darkText
-                                : AppColors.lightText,
-                            width: 1.2),
+                          color: Colors.white.withOpacity(0.08),
+                        ),
                       ),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(emoji, style: const TextStyle(fontSize: 28)),
-                          const SizedBox(height: 8),
+                          Text(emoji, style: const TextStyle(fontSize: 36)),
+                          const SizedBox(height: 10),
                           Text(
                             entry.key.toUpperCase(),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDarkMode
-                                    ? AppColors.darkText
-                                    : AppColors.lightText),
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                              color: isDarkMode ? Colors.white : Colors.black87,
+                            ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Text(
-                            "Toca para ver tu progreso",
+                            fraseStat,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
-                              color:
-                                  isDarkMode ? Colors.white38 : Colors.black54,
                               fontStyle: FontStyle.italic,
+                              color:
+                                  isDarkMode ? Colors.white54 : Colors.black45,
                             ),
                           ),
                         ],

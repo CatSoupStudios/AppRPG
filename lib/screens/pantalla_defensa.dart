@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/scheduler.dart';
 import 'dart:math';
 import '../utils/colors.dart';
+import '../utils/xp_diaria.dart';
 
 class MiniMision {
   final String descripcion;
@@ -19,12 +20,14 @@ class PantallaDefensa extends StatefulWidget {
 class _PantallaDefensaState extends State<PantallaDefensa> {
   int defensaXP = 0;
   int defensaNivel = 1;
-  DateTime? ultimaMisionPrincipal;
   bool cargando = true;
-  Duration? tiempoRestantePrincipal;
+  DateTime? ultimaGeneracion;
+  DateTime? ultimaMisionPrincipal;
+  List<int> indicesMisionesDia = [];
+  Map<int, int> xpMiniMisiones = {};
+  Map<int, bool> completadasHoy = {};
   late final Ticker _ticker;
-
-  final Duration cooldownMision = Duration(hours: 20);
+  Duration tiempoRestante = Duration.zero;
 
   final List<MiniMision> todasLasMisiones = [
     MiniMision("Bloquea 10 ataques imaginarios 💥🛡️", 1),
@@ -59,10 +62,6 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
     MiniMision("Levántate sin mirar el celular por 15 minutos ☀️📵", 1),
   ];
 
-  List<int> indicesMisionesDia = [];
-  Map<int, DateTime> cooldownsMisiones = {};
-  DateTime? ultimaGeneracion;
-
   @override
   void initState() {
     super.initState();
@@ -70,7 +69,7 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
     _ticker = Ticker((_) {
       if (!mounted) return;
       setState(() {
-        tiempoRestantePrincipal = _calcularCooldown(ultimaMisionPrincipal);
+        tiempoRestante = _calcularRestante();
       });
     })
       ..start();
@@ -82,52 +81,10 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
     super.dispose();
   }
 
-  Future<void> cargarDatos() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      defensaXP = prefs.getInt('defensa_xp') ?? 0;
-      defensaNivel = prefs.getInt('defensa_nivel') ?? 1;
-      ultimaMisionPrincipal =
-          _getDateTime(prefs.getString('ultima_mision_defensa'));
-      ultimaGeneracion =
-          _getDateTime(prefs.getString('ultima_generacion_defensa'));
-      indicesMisionesDia = (prefs.getStringList('misiones_defensa_dia') ?? [])
-          .map(int.parse)
-          .toList();
-      cooldownsMisiones = Map.fromEntries(
-        (prefs.getStringList('cooldowns_misiones_defensa') ?? []).map((e) {
-          final split = e.split('|');
-          return MapEntry(int.parse(split[0]), _getDateTime(split[1])!);
-        }),
-      );
-
-      if (_debeRegenerar()) {
-        _generarMisionesDelDia();
-      }
-
-      tiempoRestantePrincipal = _calcularCooldown(ultimaMisionPrincipal);
-      cargando = false;
-    });
-  }
-
-  bool _debeRegenerar() {
-    if (ultimaGeneracion == null) return true;
-    return DateTime.now().difference(ultimaGeneracion!) >= cooldownMision;
-  }
-
-  void _generarMisionesDelDia() async {
-    final prefs = await SharedPreferences.getInstance();
-    final random = Random();
-    final indices = <int>{};
-    while (indices.length < 5) {
-      indices.add(random.nextInt(todasLasMisiones.length));
-    }
-    indicesMisionesDia = indices.toList();
-    ultimaGeneracion = DateTime.now();
-    await prefs.setString(
-        'ultima_generacion_defensa', ultimaGeneracion!.toIso8601String());
-    await prefs.setStringList('misiones_defensa_dia',
-        indicesMisionesDia.map((e) => e.toString()).toList());
+  Duration _calcularRestante() {
+    final ahora = DateTime.now();
+    final siguiente = DateTime(ahora.year, ahora.month, ahora.day + 1);
+    return siguiente.difference(ahora);
   }
 
   DateTime? _getDateTime(String? str) {
@@ -135,83 +92,133 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
     return DateTime.tryParse(str);
   }
 
-  Duration? _calcularCooldown(DateTime? ultima) {
-    if (ultima == null) return null;
-    final restante = cooldownMision - DateTime.now().difference(ultima);
-    return restante.isNegative ? null : restante;
-  }
-
-  String _formatearDuracion(Duration duracion) {
-    final horas = duracion.inHours;
-    final minutos = duracion.inMinutes % 60;
-    final segundos = duracion.inSeconds % 60;
-    return '${horas}h ${minutos}m ${segundos}s';
+  bool _esHoy(DateTime? dt) {
+    if (dt == null) return false;
+    final ahora = DateTime.now();
+    return ahora.year == dt.year &&
+        ahora.month == dt.month &&
+        ahora.day == dt.day;
   }
 
   int xpNecesaria(int nivel) => 10 + (nivel - 1) * 5;
 
-  Future<void> completarMisionPrincipal() async {
-    if (!_puedeHacerMisionPrincipal()) return;
+  Future<void> cargarDatos() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      defensaXP += 3;
-      ultimaMisionPrincipal = DateTime.now();
-      while (defensaXP >= xpNecesaria(defensaNivel)) {
-        defensaXP -= xpNecesaria(defensaNivel);
-        defensaNivel++;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('🛡️ ¡Subiste a nivel $defensaNivel en Defensa!')),
-        );
+    defensaXP = prefs.getInt('defensa_xp') ?? 0;
+    defensaNivel = prefs.getInt('defensa_nivel') ?? 1;
+    ultimaMisionPrincipal =
+        _getDateTime(prefs.getString('ultima_mision_defensa'));
+    ultimaGeneracion =
+        _getDateTime(prefs.getString('ultima_generacion_defensa'));
+
+    final mapaXpRaw = prefs.getStringList('xp_misiones_defensa') ?? [];
+    xpMiniMisiones = {
+      for (var e in mapaXpRaw)
+        int.parse(e.split('|')[0]): int.parse(e.split('|')[1])
+    };
+
+    final completadasRaw = prefs.getStringList('completadas_defensa') ?? [];
+    completadasHoy = {for (var i in completadasRaw) int.parse(i): true};
+
+    indicesMisionesDia = (prefs.getStringList('misiones_defensa_dia') ?? [])
+        .map(int.parse)
+        .toList();
+
+    final ahora = DateTime.now();
+    if (!_esHoy(ultimaGeneracion)) {
+      final random = Random();
+      final nuevas = <int>{};
+      while (nuevas.length < 5) {
+        nuevas.add(random.nextInt(todasLasMisiones.length));
       }
-      tiempoRestantePrincipal = _calcularCooldown(ultimaMisionPrincipal);
+      indicesMisionesDia = nuevas.toList();
+      xpMiniMisiones = {
+        for (var i in indicesMisionesDia) i: random.nextInt(9) + 2,
+      };
+      completadasHoy = {};
+      await prefs.setStringList('misiones_defensa_dia',
+          indicesMisionesDia.map((e) => e.toString()).toList());
+      await prefs.setStringList('xp_misiones_defensa',
+          xpMiniMisiones.entries.map((e) => '${e.key}|${e.value}').toList());
+      await prefs.setStringList('completadas_defensa', []);
+      await prefs.setString(
+          'ultima_generacion_defensa', ahora.toIso8601String());
+    }
+
+    setState(() {
+      cargando = false;
     });
-    await prefs.setInt('defensa_xp', defensaXP);
-    await prefs.setInt('defensa_nivel', defensaNivel);
-    await prefs.setString(
-        'ultima_mision_defensa', ultimaMisionPrincipal!.toIso8601String());
   }
 
-  bool _puedeHacerMisionPrincipal() {
-    return ultimaMisionPrincipal == null ||
-        DateTime.now().difference(ultimaMisionPrincipal!) >= cooldownMision;
+  Future<void> completarMisionPrincipal() async {
+    final ahora = DateTime.now();
+    if (_esHoy(ultimaMisionPrincipal)) return;
+    final prefs = await SharedPreferences.getInstance();
+
+    final xpGanada = Random().nextInt(11) + 5;
+    defensaXP += xpGanada;
+    ultimaMisionPrincipal = ahora;
+
+    while (defensaXP >= xpNecesaria(defensaNivel)) {
+      defensaXP -= xpNecesaria(defensaNivel);
+      defensaNivel++;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('🛡️ ¡Subiste a nivel $defensaNivel en Defensa!')),
+      );
+    }
+
+    await agregarXpDelDia(xpGanada);
+    await prefs.setInt('defensa_xp', defensaXP);
+    await prefs.setInt('defensa_nivel', defensaNivel);
+    await prefs.setString('ultima_mision_defensa', ahora.toIso8601String());
+
+    setState(() {});
   }
 
   Future<void> completarMiniMision(int index) async {
     final prefs = await SharedPreferences.getInstance();
-    final misionIndex = indicesMisionesDia[index];
-    final mision = todasLasMisiones[misionIndex];
-    if (cooldownsMisiones[misionIndex] != null &&
-        DateTime.now().difference(cooldownsMisiones[misionIndex]!) <
-            cooldownMision) return;
+    final id = indicesMisionesDia[index];
+    if (completadasHoy[id] == true) return;
 
-    setState(() {
-      defensaXP += mision.xp;
-      cooldownsMisiones[misionIndex] = DateTime.now();
-      while (defensaXP >= xpNecesaria(defensaNivel)) {
-        defensaXP -= xpNecesaria(defensaNivel);
-        defensaNivel++;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('🛡️ ¡Subiste a nivel $defensaNivel en Defensa!')),
-        );
-      }
-    });
+    final xp = xpMiniMisiones[id] ?? 2;
+    defensaXP += xp;
+    completadasHoy[id] = true;
 
+    while (defensaXP >= xpNecesaria(defensaNivel)) {
+      defensaXP -= xpNecesaria(defensaNivel);
+      defensaNivel++;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('🛡️ ¡Subiste a nivel $defensaNivel en Defensa!')),
+      );
+    }
+
+    await agregarXpDelDia(xp);
     await prefs.setInt('defensa_xp', defensaXP);
     await prefs.setInt('defensa_nivel', defensaNivel);
     await prefs.setStringList(
-      'cooldowns_misiones_defensa',
-      cooldownsMisiones.entries
-          .map((e) => '${e.key}|${e.value.toIso8601String()}')
-          .toList(),
-    );
+        'completadas_defensa',
+        completadasHoy.entries
+            .where((e) => e.value)
+            .map((e) => e.key.toString())
+            .toList());
+
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final xpMaxima = xpNecesaria(defensaNivel);
+    final xpMax = xpNecesaria(defensaNivel);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final puedeHacerPrincipal = !_esHoy(ultimaMisionPrincipal);
+
+    String _formatearDuracion(Duration d) {
+      final h = d.inHours;
+      final m = d.inMinutes % 60;
+      final s = d.inSeconds % 60;
+      return '${h}h ${m}m ${s}s';
+    }
 
     return Scaffold(
       backgroundColor:
@@ -241,14 +248,15 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                               : AppColors.lightText)),
                   const SizedBox(height: 10),
                   LinearProgressIndicator(
-                    value: defensaXP / xpMaxima,
+                    value: defensaXP / xpMax,
                     backgroundColor:
                         isDarkMode ? Colors.grey[800] : Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(Colors.amber),
                     minHeight: 12,
                   ),
                   const SizedBox(height: 10),
-                  Text('$defensaXP / $xpMaxima XP',
+                  Text('$defensaXP / $xpMax XP',
                       style: TextStyle(
                           color: isDarkMode
                               ? AppColors.darkSecondaryText
@@ -269,13 +277,12 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                               : AppColors.lightSecondaryText)),
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
-                    onPressed: _puedeHacerMisionPrincipal()
-                        ? completarMisionPrincipal
-                        : null,
+                    onPressed:
+                        puedeHacerPrincipal ? completarMisionPrincipal : null,
                     icon: const Icon(Icons.shield),
-                    label: Text(_puedeHacerMisionPrincipal()
-                        ? 'Completar misión (+3 XP)'
-                        : 'Ya completada (20h cooldown)'),
+                    label: Text(puedeHacerPrincipal
+                        ? 'Completar misión (+XP aleatoria)'
+                        : 'Ya completada hoy'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
                       foregroundColor: Colors.black,
@@ -284,20 +291,18 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                       textStyle: const TextStyle(fontSize: 16),
                     ),
                   ),
-                  if (!_puedeHacerMisionPrincipal() &&
-                      tiempoRestantePrincipal != null)
+                  if (!puedeHacerPrincipal)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        '⏳ Próxima sesión disponible en: ${_formatearDuracion(tiempoRestantePrincipal!)}',
-                        style: TextStyle(
-                            color: isDarkMode
-                                ? AppColors.darkSecondaryText
-                                : AppColors.lightSecondaryText),
-                      ),
+                          '⏳ Nuevo intento en: ${_formatearDuracion(tiempoRestante)}',
+                          style: TextStyle(
+                              color: isDarkMode
+                                  ? AppColors.darkSecondaryText
+                                  : AppColors.lightSecondaryText)),
                     ),
                   const SizedBox(height: 40),
-                  Text('🧱 Mini-misiones del día:',
+                  Text('🎯 Mini-misiones del día:',
                       style: TextStyle(
                           fontSize: 20,
                           color: isDarkMode
@@ -307,37 +312,50 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                   ...List.generate(indicesMisionesDia.length, (i) {
                     final idx = indicesMisionesDia[i];
                     final mision = todasLasMisiones[idx];
-                    final enCooldown = cooldownsMisiones[idx] != null &&
-                        DateTime.now().difference(cooldownsMisiones[idx]!) <
-                            cooldownMision;
-                    final tiempoRestante =
-                        _calcularCooldown(cooldownsMisiones[idx]);
+                    final hecha = completadasHoy[idx] == true;
+                    final xp = xpMiniMisiones[idx] ?? 2;
 
                     return Card(
                       color: isDarkMode
-                          ? (enCooldown ? Colors.grey[900] : Colors.black)
-                          : (enCooldown ? Colors.grey[300] : Colors.white),
+                          ? (hecha ? Colors.grey[900] : Colors.black)
+                          : (hecha ? Colors.grey[300] : Colors.white),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       elevation: 3,
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
-                        title: Text(mision.descripcion,
-                            style: TextStyle(
-                                color: isDarkMode
-                                    ? AppColors.darkText
-                                    : AppColors.lightText)),
-                        subtitle: Text('+${mision.xp} XP',
-                            style: TextStyle(
+                        title: Text(
+                          mision.descripcion,
+                          style: TextStyle(
+                            color: isDarkMode
+                                ? AppColors.darkText
+                                : AppColors.lightText,
+                          ),
+                        ),
+                        subtitle: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '+${xp} XP',
+                              style: TextStyle(
                                 color: isDarkMode
                                     ? Colors.amber[300]
-                                    : Colors.amber[800])),
-                        trailing: enCooldown
-                            ? Text('⏳ ${_formatearDuracion(tiempoRestante!)}',
+                                    : Colors.amber[800],
+                              ),
+                            ),
+                            if (hecha)
+                              const Text(
+                                '⏳ Disponible mañana',
                                 style: TextStyle(
-                                    color: isDarkMode
-                                        ? AppColors.darkSecondaryText
-                                        : AppColors.lightSecondaryText))
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: hecha
+                            ? const Icon(Icons.check, color: Colors.grey)
                             : IconButton(
                                 icon: const Icon(Icons.check_circle,
                                     color: Colors.amber),
