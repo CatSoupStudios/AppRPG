@@ -1,6 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+
 import 'models/clase_rpg.dart';
 import 'data/stats_base.dart';
 import 'screens/pantalla_fuerza.dart';
@@ -10,12 +11,15 @@ import 'screens/pantalla_agilidad.dart';
 import 'screens/pantalla_vitalidad.dart';
 import 'screens/pantalla_suerte.dart';
 import 'screens/pantalla_carisma.dart';
-import 'utils/nivel_general.dart';
 import 'screens/pantalla_settings.dart';
+import 'screens/pantalla_calendario.dart';
+import 'utils/nivel_general.dart';
+import 'utils/xp_diaria.dart';
+import 'utils/colors.dart';
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
-import 'utils/colors.dart';
-import 'screens/pantalla_calendario.dart';
+import './data/frases_diarias.dart';
+import 'screens/pantalla_perfil.dart';
 
 class RPGHome extends StatefulWidget {
   const RPGHome({super.key});
@@ -27,9 +31,10 @@ class RPGHome extends StatefulWidget {
 class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   String? nombre;
   ClaseRPG? clase;
-  File? imagenPerfil;
+  String? avatarSeleccionadoPath;
   Map<String, int> stats = {};
   int nivelGeneral = 0;
+  int rachaActual = 0;
 
   final Map<String, String> statEmojis = {
     'fuerza': '💪',
@@ -41,44 +46,11 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     'carisma': '😎',
   };
 
-  final List<String> frasesDiarias = [
-    "🌀 Hoy eres más fuerte que ayer.",
-    "🔥 El fuego interior nunca se apaga.",
-    "⚡ El cambio es inevitable, el crecimiento es opcional.",
-    "🛡️ Protege tu energía, no cualquiera la merece.",
-    "🎯 Apunta a algo más alto que el miedo.",
-    "📚 Cada día es un capítulo nuevo.",
-    "💥 Nadie recuerda al que no arriesgó.",
-    "🌙 Descansa, pero no te detengas.",
-    "🧭 Pierde el rumbo para encontrarte.",
-    "🏔️ Lo difícil es lo que vale la pena.",
-    "🚀 Las excusas no te llevan a ningún lado.",
-    "💀 El miedo también sangra.",
-    "👁️ El que observa, entiende.",
-    "🕯️ Si no hay luz, sé la chispa.",
-    "💣 Explota tus límites.",
-    "🌱 Evoluciona o repite.",
-    "🧘‍♂️ Calma no es debilidad.",
-    "🗡️ Sé firme, aunque tiemble la voz.",
-    "🎭 Quítate la máscara. Sé tú.",
-    "🪞 Tu reflejo también entrena.",
-    "🚪Cierra puertas que ya no llevan a nada.",
-    "🧠 La mente también se entrena.",
-    "🌀 El caos también puede guiar.",
-    "🏹 No fallaste, solo estás cargando el arco.",
-    "💫 Agradece incluso lo que dolió.",
-    "🌌 Eres más que tu pasado.",
-    "🪓 Corta lo que te frena.",
-    "📖 Escribe tu propia leyenda.",
-    "🎮 El control está en tus manos.",
-    "⏳ Aún hay tiempo. Hazlo épico."
-  ];
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    cargarDatos();
+    actualizarXPGeneralSiEsNuevoDia().then((_) => cargarDatos());
   }
 
   @override
@@ -94,11 +66,22 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> actualizarXPGeneralSiEsNuevoDia() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final ultimaFecha = prefs.getString('ultima_fecha') ?? '';
+
+    if (hoy != ultimaFecha) {
+      await procesarXpDelDiaAnteriorYAplicar();
+      await prefs.setString('ultima_fecha', hoy);
+    }
+  }
+
   Future<void> cargarDatos() async {
     final prefs = await SharedPreferences.getInstance();
     final nombreGuardado = prefs.getString('nombre_invocador');
     final claseGuardada = prefs.getString('clase_rpg');
-    final imagenPath = prefs.getString('imagen_perfil');
+    final avatarPath = prefs.getString('avatar_seleccionado');
 
     ClaseRPG? claseSeleccionada;
     if (claseGuardada != null) {
@@ -106,7 +89,6 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
         claseSeleccionada =
             ClaseRPG.values.firstWhere((c) => c.name == claseGuardada);
       } catch (e) {
-        debugPrint('Clase no reconocida: $claseGuardada');
         claseSeleccionada = ClaseRPG.mago;
       }
     }
@@ -116,14 +98,48 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     setState(() {
       nombre = nombreGuardado;
       clase = claseSeleccionada;
-      imagenPerfil = imagenPath != null ? File(imagenPath) : null;
+      avatarSeleccionadoPath = avatarPath;
       stats = clase != null ? statsPorClase[clase!]! : {};
       nivelGeneral = totalNivel;
     });
+
+    await actualizarRacha();
+    final nuevaRacha = prefs.getInt('racha_actual') ?? 0;
+    setState(() {
+      rachaActual = nuevaRacha;
+    });
+  }
+
+  Future<void> actualizarRacha() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hoy = DateTime.now();
+    final hoyStr = DateFormat('yyyy-MM-dd').format(hoy);
+    final ayer = hoy.subtract(const Duration(days: 1));
+    final ayerStr = DateFormat('yyyy-MM-dd').format(ayer);
+
+    List<String> diasActivos = prefs.getStringList('dias_activos') ?? [];
+
+    if (!diasActivos.contains(hoyStr)) {
+      diasActivos.add(hoyStr);
+      await prefs.setStringList('dias_activos', diasActivos);
+    }
+
+    final ultimoDia = prefs.getString('ultimo_dia_activo');
+    int racha = prefs.getInt('racha_actual') ?? 0;
+
+    if (ultimoDia == ayerStr) {
+      racha += 1;
+    } else if (ultimoDia != hoyStr) {
+      racha = 1;
+    }
+
+    await prefs.setString('ultimo_dia_activo', hoyStr);
+    await prefs.setInt('racha_actual', racha);
   }
 
   void abrirPantallaStat(String stat) {
     final lowerStat = stat.toLowerCase();
+
     if (lowerStat == 'fuerza') {
       Navigator.push(
               context, MaterialPageRoute(builder: (_) => PantallaFuerza()))
@@ -179,65 +195,75 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: imagenPerfil != null
-                          ? Image.file(imagenPerfil!,
-                              width: 72, height: 72, fit: BoxFit.cover)
-                          : Container(
-                              width: 72,
-                              height: 72,
-                              color: Colors.white24,
-                              child: const Icon(Icons.person,
-                                  size: 36, color: Colors.white70),
-                            ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  nombre != null
-                                      ? '${nombre!.toUpperCase()} (lvl $nivelGeneral)'
-                                      : "INVOCADOR",
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDarkMode
-                                        ? AppColors.lightBackground
-                                        : AppColors.lightText,
-                                  ),
+              // 🔘 Cabecera con avatar, nombre, clase e íconos
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Avatar
+                  ClipOval(
+                    child: avatarSeleccionadoPath != null
+                        ? Image.asset(
+                            avatarSeleccionadoPath!,
+                            width: 72,
+                            height: 72,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            width: 72,
+                            height: 72,
+                            color: Colors.white24,
+                            child: const Icon(Icons.person,
+                                size: 36, color: Colors.white70),
+                          ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Nombre, clase, íconos
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 🧙‍♂️ Nombre + settings
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                nombre != null
+                                    ? '${nombre!.toUpperCase()} (lvl $nivelGeneral)'
+                                    : "INVOCADOR",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode
+                                      ? AppColors.lightBackground
+                                      : AppColors.lightText,
                                 ),
                               ),
-                              IconButton(
-                                icon: Icon(Icons.settings,
-                                    color: isDarkMode
-                                        ? AppColors.darkText
-                                        : AppColors.lightText),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const PantallaSettings()),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                          if (clase != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 1),
-                              child: Text(
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.settings_rounded,
+                                  color: isDarkMode
+                                      ? AppColors.darkText
+                                      : AppColors.lightText),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const PantallaSettings()),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 2),
+
+                        // Clase y otros íconos
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (clase != null)
+                              Text(
                                 claseEmojis[clase]!,
                                 style: TextStyle(
                                   fontSize: 16,
@@ -246,42 +272,71 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                                       : AppColors.lightText,
                                 ),
                               ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.person_rounded,
+                                  color: Colors.amber),
+                              onPressed: () {
+                                showGeneralDialog(
+                                  context: context,
+                                  barrierDismissible: true,
+                                  barrierLabel: "Perfil",
+                                  transitionDuration:
+                                      const Duration(milliseconds: 400),
+                                  pageBuilder: (_, __, ___) =>
+                                      const PantallaPerfil(),
+                                  transitionBuilder: (_, animation, __, child) {
+                                    final curved = CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeInOut);
+                                    return SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0, -1),
+                                        end: Offset.zero,
+                                      ).animate(curved),
+                                      child: child,
+                                    );
+                                  },
+                                );
+                              },
                             ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "📊 Tus Stats",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode
-                          ? AppColors.lightBackground
-                          : AppColors.lightText,
+                            IconButton(
+                              icon: const Icon(Icons.calendar_month_rounded,
+                                  color: Colors.amber),
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => const PantallaCalendario(),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.calendar_month_rounded,
-                        color: Colors.amber),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => const PantallaCalendario(),
-                      );
-                    },
-                  )
                 ],
               ),
+
+              const SizedBox(height: 30),
+
+              // 📊 Título
+              Text(
+                "📊 Tus Stats",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode
+                      ? AppColors.lightBackground
+                      : AppColors.lightText,
+                ),
+              ),
+
               const SizedBox(height: 20),
+
+              // Stats
               Wrap(
                 spacing: 16,
                 runSpacing: 16,
@@ -347,7 +402,10 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                   );
                 }).toList(),
               ),
+
               const SizedBox(height: 40),
+
+              // Frase final del día
               Text(
                 fraseDelDia,
                 style: TextStyle(
