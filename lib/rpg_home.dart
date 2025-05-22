@@ -195,73 +195,48 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔘 Cabecera con avatar, nombre, clase e íconos
+              // 🔘 Cabecera ajustada
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar
-                  ClipOval(
-                    child: avatarSeleccionadoPath != null
-                        ? Image.asset(
-                            avatarSeleccionadoPath!,
-                            width: 72,
-                            height: 72,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: 72,
-                            height: 72,
-                            color: Colors.white24,
-                            child: const Icon(Icons.person,
-                                size: 36, color: Colors.white70),
-                          ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Nombre, clase, íconos
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  // 🔽 Solo bajamos esta parte izquierda
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
                       children: [
-                        // 🧙‍♂️ Nombre + settings
-                        Row(
+                        ClipOval(
+                          child: avatarSeleccionadoPath != null
+                              ? Image.asset(
+                                  avatarSeleccionadoPath!,
+                                  width: 72,
+                                  height: 72,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: 72,
+                                  height: 72,
+                                  color: Colors.white24,
+                                  child: const Icon(Icons.person,
+                                      size: 36, color: Colors.white70),
+                                ),
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                nombre != null
-                                    ? '${nombre!.toUpperCase()} (lvl $nivelGeneral)'
-                                    : "INVOCADOR",
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDarkMode
-                                      ? AppColors.lightBackground
-                                      : AppColors.lightText,
-                                ),
+                            Text(
+                              nombre != null
+                                  ? '${nombre!.toUpperCase()} (lvl $nivelGeneral)'
+                                  : "INVOCADOR",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: isDarkMode
+                                    ? AppColors.lightBackground
+                                    : AppColors.lightText,
                               ),
                             ),
-                            IconButton(
-                              icon: Icon(Icons.settings_rounded,
-                                  color: isDarkMode
-                                      ? AppColors.darkText
-                                      : AppColors.lightText),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const PantallaSettings()),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 2),
-
-                        // Clase y otros íconos
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
+                            const SizedBox(height: 2),
                             if (clase != null)
                               Text(
                                 claseEmojis[clase]!,
@@ -272,50 +247,66 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                                       : AppColors.lightText,
                                 ),
                               ),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.person_rounded,
-                                  color: Colors.amber),
-                              onPressed: () {
-                                showGeneralDialog(
-                                  context: context,
-                                  barrierDismissible: true,
-                                  barrierLabel: "Perfil",
-                                  transitionDuration:
-                                      const Duration(milliseconds: 400),
-                                  pageBuilder: (_, __, ___) =>
-                                      const PantallaPerfil(),
-                                  transitionBuilder: (_, animation, __, child) {
-                                    final curved = CurvedAnimation(
-                                        parent: animation,
-                                        curve: Curves.easeInOut);
-                                    return SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0, -1),
-                                        end: Offset.zero,
-                                      ).animate(curved),
-                                      child: child,
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.calendar_month_rounded,
-                                  color: Colors.amber),
-                              onPressed: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => const PantallaCalendario(),
-                                );
-                              },
-                            ),
                           ],
                         ),
                       ],
                     ),
+                  ),
+                  const Spacer(),
+                  // 🔧👤📅 Íconos fijos
+                  Column(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.settings_rounded,
+                            color: isDarkMode
+                                ? AppColors.darkText
+                                : AppColors.lightText),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const PantallaSettings()),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.person_rounded,
+                            color: Colors.amber),
+                        onPressed: () {
+                          showGeneralDialog(
+                            context: context,
+                            barrierDismissible: true,
+                            barrierLabel: "Perfil",
+                            transitionDuration:
+                                const Duration(milliseconds: 400),
+                            pageBuilder: (_, __, ___) => const PantallaPerfil(),
+                            transitionBuilder: (_, animation, __, child) {
+                              final curved = CurvedAnimation(
+                                  parent: animation, curve: Curves.easeInOut);
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, -1),
+                                  end: Offset.zero,
+                                ).animate(curved),
+                                child: child,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.calendar_month_rounded,
+                            color: Colors.amber),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => const PantallaCalendario(),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
