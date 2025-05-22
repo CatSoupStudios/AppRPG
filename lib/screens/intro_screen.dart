@@ -71,18 +71,25 @@ class _IntroScreenState extends State<IntroScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // ✅ fondo oscuro asegurado
-      body: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Image.asset(
-              'assets/solo-leveling-intro.png',
-              fit: BoxFit.cover,
-            ),
-          );
-        },
+      backgroundColor: Colors.black,
+      body: Center(
+        // 👈 Esto centra el contenido
+        child: AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: SizedBox.expand(
+                // 👈 Esto asegura que ocupe toda la pantalla
+                child: Image.asset(
+                  'assets/solo_leveling_intro.png', // <-- asegúrate de usar esta
+                  fit: BoxFit
+                      .cover, // 👈 Esto hace que la imagen se estire sin deformarse
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

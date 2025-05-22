@@ -1,7 +1,7 @@
 name: solo_leveling
 description: A new Flutter project.
 publish_to: 'none'
-version: 1.1.1+9
+version: 1.1.1+11
 
 environment:
   sdk: ">=2.18.0 <3.0.0"
@@ -17,20 +17,19 @@ dependencies:
   provider: ^6.1.1
   table_calendar: ^3.0.9
   audioplayers: ^5.2.1
+  flutter_native_splash: ^2.4.6
   
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_native_splash: ^2.3.1
   flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
 
   assets:
-    - assets/solo-leveling-intro.png
-    - assets/icon_app.png
+    - assets/solo_leveling_intro.png
     - assets/forest.png
     - assets/creacion.png
     - assets/avatars/mago/
@@ -45,15 +44,4 @@ flutter:
       fonts:
         - asset: assets/fonts/OptimusPrinceps.ttf
 
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path_android: "assets/icon_app.png"
-  image_path_ios: "assets/icon_app.png"
-
-flutter_native_splash:
-  color: "#000000"
-  fullscreen: true
-  android: true
-  ios: true
 
