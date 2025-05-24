@@ -18,6 +18,8 @@ dependencies:
   table_calendar: ^3.0.9
   audioplayers: ^5.2.1
   flutter_native_splash: ^2.4.6
+  animated_background: ^2.0.0
+  lottie: 3.3.1
   
 
 dev_dependencies:
@@ -38,6 +40,8 @@ flutter:
     - assets/avatars/nigromante/
     - assets/avatars/picaro/
     - assets/sounds/sword-tap.mp3
+    - assets/animations/palimita.json
+    - assets/animations/confeti.json
 
   fonts:
     - family: OptimusPrinceps

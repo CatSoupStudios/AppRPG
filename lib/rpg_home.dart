@@ -20,6 +20,7 @@ import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import './data/frases_diarias.dart';
 import 'screens/pantalla_perfil.dart';
+import '../effects/fluid_lines_background.dart';
 
 class RPGHome extends StatefulWidget {
   const RPGHome({super.key});
@@ -35,6 +36,8 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   Map<String, int> stats = {};
   int nivelGeneral = 0;
   int rachaActual = 0;
+  bool fondoAnimado = true;
+  bool cargandoPrefs = true;
 
   final Map<String, String> statEmojis = {
     'fuerza': '💪',
@@ -50,7 +53,17 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    actualizarXPGeneralSiEsNuevoDia().then((_) => cargarDatos());
+    _cargarFondoAnimado().then((_) {
+      actualizarXPGeneralSiEsNuevoDia().then((_) => cargarDatos());
+    });
+  }
+
+  Future<void> _cargarFondoAnimado() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      fondoAnimado = prefs.getBool('fondoAnimado') ?? true;
+      cargandoPrefs = false;
+    });
   }
 
   @override
@@ -63,6 +76,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       cargarDatos();
+      _cargarFondoAnimado();
     }
   }
 
@@ -79,18 +93,19 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
 
   Future<void> cargarDatos() async {
     final prefs = await SharedPreferences.getInstance();
-    final nombreGuardado = prefs.getString('nombre_invocador');
-    final claseGuardada = prefs.getString('clase_rpg');
-    final avatarPath = prefs.getString('avatar_seleccionado');
+
+    final nombreGuardado = prefs.getString('nombre_invocador') ?? 'Invocador';
+    final claseGuardada = prefs.getString('clase') ?? 'mago';
+    final avatarNombre = prefs.getString('avatar') ??
+        prefs.getString('avatar_seleccionado')?.split('/').last ??
+        'mago-1.png';
 
     ClaseRPG? claseSeleccionada;
-    if (claseGuardada != null) {
-      try {
-        claseSeleccionada =
-            ClaseRPG.values.firstWhere((c) => c.name == claseGuardada);
-      } catch (e) {
-        claseSeleccionada = ClaseRPG.mago;
-      }
+    try {
+      claseSeleccionada =
+          ClaseRPG.values.firstWhere((c) => c.name == claseGuardada);
+    } catch (e) {
+      claseSeleccionada = ClaseRPG.mago;
     }
 
     final totalNivel = await obtenerNivelGeneral();
@@ -98,7 +113,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     setState(() {
       nombre = nombreGuardado;
       clase = claseSeleccionada;
-      avatarSeleccionadoPath = avatarPath;
+      avatarSeleccionadoPath = 'assets/avatars/$claseGuardada/$avatarNombre';
       stats = clase != null ? statsPorClase[clase!]! : {};
       nivelGeneral = totalNivel;
     });
@@ -187,230 +202,217 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
       'agilidad': "Moverse es decidir antes que el mundo.",
     };
 
-    return Scaffold(
-      backgroundColor: isDarkMode ? Colors.black : Colors.grey[100],
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 🔘 Cabecera ajustada
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 🔽 Solo bajamos esta parte izquierda
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Row(
-                      children: [
-                        ClipOval(
-                          child: avatarSeleccionadoPath != null
-                              ? Image.asset(
-                                  avatarSeleccionadoPath!,
-                                  width: 72,
-                                  height: 72,
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(
-                                  width: 72,
-                                  height: 72,
-                                  color: Colors.white24,
-                                  child: const Icon(Icons.person,
-                                      size: 36, color: Colors.white70),
-                                ),
-                        ),
-                        const SizedBox(width: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+    if (cargandoPrefs) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    Widget contenido = SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    children: [
+                      ClipOval(
+                        child: avatarSeleccionadoPath != null
+                            ? Image.asset(
+                                avatarSeleccionadoPath!,
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: 72,
+                                height: 72,
+                                color: Colors.white24,
+                                child: const Icon(Icons.person,
+                                    size: 36, color: Colors.white70),
+                              ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nombre != null
+                                ? '${nombre!.toUpperCase()} (lvl $nivelGeneral)'
+                                : "INVOCADOR",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode
+                                  ? AppColors.lightBackground
+                                  : AppColors.lightText,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          if (clase != null)
                             Text(
-                              nombre != null
-                                  ? '${nombre!.toUpperCase()} (lvl $nivelGeneral)'
-                                  : "INVOCADOR",
+                              claseEmojis[clase]!,
                               style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                                 color: isDarkMode
-                                    ? AppColors.lightBackground
+                                    ? AppColors.darkText
                                     : AppColors.lightText,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            if (clase != null)
-                              Text(
-                                claseEmojis[clase]!,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: isDarkMode
-                                      ? AppColors.darkText
-                                      : AppColors.lightText,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  // 🔧👤📅 Íconos fijos
-                  Column(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.settings_rounded,
-                            color: isDarkMode
-                                ? AppColors.darkText
-                                : AppColors.lightText),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const PantallaSettings()),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.person_rounded,
-                            color: Colors.amber),
-                        onPressed: () {
-                          showGeneralDialog(
-                            context: context,
-                            barrierDismissible: true,
-                            barrierLabel: "Perfil",
-                            transitionDuration:
-                                const Duration(milliseconds: 400),
-                            pageBuilder: (_, __, ___) => const PantallaPerfil(),
-                            transitionBuilder: (_, animation, __, child) {
-                              final curved = CurvedAnimation(
-                                  parent: animation, curve: Curves.easeInOut);
-                              return SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0, -1),
-                                  end: Offset.zero,
-                                ).animate(curved),
-                                child: child,
-                              );
-                            },
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.calendar_month_rounded,
-                            color: Colors.amber),
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => const PantallaCalendario(),
-                          );
-                        },
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 30),
-
-              // 📊 Título
-              Text(
-                "📊 Tus Stats",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode
-                      ? AppColors.lightBackground
-                      : AppColors.lightText,
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Stats
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: stats.entries.map((entry) {
-                  final keyLower = entry.key.toLowerCase();
-                  final emoji = statEmojis[keyLower] ?? '🔹';
-                  final fraseStat =
-                      frasesPorStat[keyLower] ?? "Stat desbloqueado.";
-
-                  return GestureDetector(
-                    onTap: () => abrirPantallaStat(entry.key),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.42,
-                      constraints: const BoxConstraints(minHeight: 170),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: isDarkMode
-                            ? Colors.white.withOpacity(0.03)
-                            : Colors.white.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(26),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
+                const Spacer(),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.settings_rounded,
+                          color: isDarkMode
+                              ? AppColors.darkText
+                              : AppColors.lightText),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const PantallaSettings()),
+                        ).then((_) =>
+                            _cargarFondoAnimado()); // refresca el fondo al volver de ajustes
+                      },
+                    ),
+                    IconButton(
+                      icon:
+                          const Icon(Icons.person_rounded, color: Colors.amber),
+                      onPressed: () => showGeneralDialog(
+                        context: context,
+                        barrierDismissible: true,
+                        barrierLabel: "Perfil",
+                        transitionDuration: const Duration(milliseconds: 400),
+                        pageBuilder: (_, __, ___) => const PantallaPerfil(),
+                        transitionBuilder: (_, animation, __, child) =>
+                            SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, -1),
+                            end: Offset.zero,
+                          ).animate(CurvedAnimation(
+                              parent: animation, curve: Curves.easeInOut)),
+                          child: child,
                         ),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(emoji, style: const TextStyle(fontSize: 36)),
-                          const SizedBox(height: 10),
-                          Text(
-                            entry.key.toUpperCase(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.calendar_month_rounded,
+                          color: Colors.amber),
+                      onPressed: () => showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const PantallaCalendario(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+            Text(
+              "📊 Tus Stats",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDarkMode
+                    ? AppColors.lightBackground
+                    : AppColors.lightText,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: stats.entries.map((entry) {
+                final keyLower = entry.key.toLowerCase();
+                final emoji = statEmojis[keyLower] ?? '🔹';
+                final fraseStat =
+                    frasesPorStat[keyLower] ?? "Stat desbloqueado.";
+
+                return GestureDetector(
+                  onTap: () => abrirPantallaStat(entry.key),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.42,
+                    constraints: const BoxConstraints(minHeight: 170),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 18, horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? Colors.white.withOpacity(0.03)
+                          : Colors.white.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(26),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.08),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(emoji, style: const TextStyle(fontSize: 36)),
+                        const SizedBox(height: 10),
+                        Text(entry.key.toUpperCase(),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.1,
                               color: isDarkMode ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            fraseStat,
+                            )),
+                        const SizedBox(height: 8),
+                        Text(fraseStat,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
                               color:
                                   isDarkMode ? Colors.white54 : Colors.black45,
-                            ),
-                          ),
-                        ],
-                      ),
+                            )),
+                      ],
                     ),
-                  );
-                }).toList(),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 40),
+            Text(
+              fraseDelDia,
+              style: TextStyle(
+                fontSize: 16,
+                fontStyle: FontStyle.italic,
+                color: isDarkMode
+                    ? AppColors.darkSecondaryText
+                    : AppColors.lightSecondaryText,
               ),
-
-              const SizedBox(height: 40),
-
-              // Frase final del día
-              Text(
-                fraseDelDia,
-                style: TextStyle(
-                  color: isDarkMode
-                      ? AppColors.darkSecondaryText
-                      : AppColors.lightSecondaryText,
-                  fontStyle: FontStyle.italic,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+
+    return Scaffold(
+      backgroundColor:
+          isDarkMode ? AppColors.darkBackground : AppColors.lightBackground,
+      body: fondoAnimado ? FluidLinesBackground(child: contenido) : contenido,
     );
   }
 }

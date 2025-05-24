@@ -32,7 +32,7 @@ class _PantallaSeleccionAvatarState extends State<PantallaSeleccionAvatar> {
     final clase = widget.claseSeleccionada.name;
 
     _avatarPaths = List.generate(
-      5, // solo 5 imágenes por clase
+      5,
       (i) => 'assets/avatars/$clase/$clase-${i + 1}.png',
     );
   }
@@ -43,8 +43,13 @@ class _PantallaSeleccionAvatarState extends State<PantallaSeleccionAvatar> {
 
   Future<void> guardarAvatarYContinuar() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        'avatar_seleccionado', _avatarPaths[_indiceSeleccionado]);
+
+    final clase = widget.claseSeleccionada.name;
+    final path = _avatarPaths[_indiceSeleccionado];
+    final nombreArchivo = path.split('/').last; // Extrae 'mago-3.png'
+
+    await prefs.setString('clase', clase);
+    await prefs.setString('avatar', nombreArchivo);
 
     Navigator.pushReplacement(
       context,
@@ -65,8 +70,6 @@ class _PantallaSeleccionAvatarState extends State<PantallaSeleccionAvatar> {
       body: Stack(
         children: [
           const ParticlesBackground(),
-
-          // 🔙 Flecha de regreso con sonido
           Positioned(
             top: 40,
             left: 16,
@@ -87,7 +90,6 @@ class _PantallaSeleccionAvatarState extends State<PantallaSeleccionAvatar> {
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               children: [
@@ -102,8 +104,7 @@ class _PantallaSeleccionAvatarState extends State<PantallaSeleccionAvatar> {
                     },
                     itemBuilder: (context, index) {
                       final path = _avatarPaths[index];
-                      final descripcion =
-                          frasesPorClase[clase]?[index] ?? ""; // 😎 limpio
+                      final descripcion = frasesPorClase[clase]?[index] ?? "";
                       final esSeleccionado = index == _indiceSeleccionado;
 
                       return Transform.scale(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/theme_provider.dart';
 import '../utils/colors.dart';
 
@@ -11,6 +12,28 @@ class PantallaSettings extends StatefulWidget {
 }
 
 class _PantallaSettingsState extends State<PantallaSettings> {
+  bool fondoAnimado = true;
+  bool cargandoPrefs = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarFondoAnimado();
+  }
+
+  Future<void> _cargarFondoAnimado() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      fondoAnimado = prefs.getBool('fondoAnimado') ?? true;
+      cargandoPrefs = false;
+    });
+  }
+
+  Future<void> _guardarFondoAnimado(bool valor) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('fondoAnimado', valor);
+  }
+
   void mostrarSelectorDeIdioma() {
     final isDarkMode =
         Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
@@ -146,6 +169,56 @@ class _PantallaSettingsState extends State<PantallaSettings> {
                     activeColor: Colors.amber,
                   ),
                 ),
+                Divider(
+                    height: 1,
+                    color: isDarkMode
+                        ? AppColors.darkSecondaryText
+                        : AppColors.lightSecondaryText),
+                // Nuevo ListTile para fondo animado (con loading)
+                cargandoPrefs
+                    ? ListTile(
+                        title: Text('Fondo animado',
+                            style: TextStyle(
+                                color: isDarkMode
+                                    ? AppColors.darkText
+                                    : AppColors.lightText,
+                                fontSize: 16)),
+                        subtitle: Text('Cargando...',
+                            style: TextStyle(
+                                color: isDarkMode
+                                    ? AppColors.darkSecondaryText
+                                    : AppColors.lightSecondaryText)),
+                        trailing: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
+                      )
+                    : ListTile(
+                        title: Text('Fondo animado',
+                            style: TextStyle(
+                                color: isDarkMode
+                                    ? AppColors.darkText
+                                    : AppColors.lightText,
+                                fontSize: 16)),
+                        subtitle: Text(
+                          fondoAnimado ? 'Activado' : 'Desactivado',
+                          style: TextStyle(
+                              color: isDarkMode
+                                  ? AppColors.darkSecondaryText
+                                  : AppColors.lightSecondaryText),
+                        ),
+                        trailing: Switch(
+                          value: fondoAnimado,
+                          onChanged: (value) async {
+                            setState(() {
+                              fondoAnimado = value;
+                            });
+                            await _guardarFondoAnimado(value);
+                          },
+                          activeColor: Colors.amber,
+                        ),
+                      ),
               ],
             ),
           ),

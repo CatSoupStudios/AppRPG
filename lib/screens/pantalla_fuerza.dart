@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lottie/lottie.dart';
 import 'package:flutter/scheduler.dart';
 import 'dart:math';
 import '../utils/colors.dart';
-import '../utils/xp_diaria.dart';
 
 class MiniMision {
   final String descripcion;
@@ -28,6 +28,13 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
   Map<int, bool> completadasHoy = {};
   late final Ticker _ticker;
   Duration tiempoRestante = Duration.zero;
+
+  // --------- Animación de palomita ---------
+  bool showCheckAnimation = false;
+  int? indexAnimado; // (por si luego quieres saber cuál mini-misión animar)
+  // -----------------------------------------
+
+  String? nombreInvocador;
 
   final List<MiniMision> todasLasMisiones = [
     MiniMision("Hacer 10 lagartijas 💪🔥", 1),
@@ -110,6 +117,7 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
         _getDateTime(prefs.getString('ultima_mision_fuerza'));
     ultimaGeneracion =
         _getDateTime(prefs.getString('ultima_generacion_fuerza'));
+    nombreInvocador = prefs.getString('nombre_invocador') ?? "Invocador";
 
     // XP aleatoria persistente
     final mapaXpRaw = prefs.getStringList('xp_misiones_fuerza') ?? [];
@@ -153,7 +161,111 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
     });
   }
 
+  // ----------- MODAL DE SUBIR NIVEL -----------
+  void mostrarDialogoNivel(int nivel) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final size = MediaQuery.of(context).size;
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          elevation: 0,
+          child: Container(
+            width: size.width,
+            height: size.height,
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? Colors.black.withOpacity(0.85)
+                  : Colors.white.withOpacity(0.9),
+            ),
+            child: Stack(
+              children: [
+                // Animación de confeti en fondo
+                Positioned.fill(
+                  child: Lottie.asset(
+                    'assets/animations/confeti.json',
+                    fit: BoxFit.cover,
+                    repeat: false,
+                  ),
+                ),
+
+                // Contenido centrado encima del confeti
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        nombreInvocador ?? 'Invocador',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                          shadows: [
+                            Shadow(
+                              color:
+                                  isDarkMode ? Colors.white38 : Colors.black26,
+                              blurRadius: 14,
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '¡Subiste a Nivel $nivel!',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          color: Colors.amber,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(color: Colors.black45, blurRadius: 12),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 40),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 36, vertical: 16),
+                          textStyle: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Aceptar'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ----------- FIN MODAL -----------
+
   Future<void> completarMisionPrincipal() async {
+    setState(() {
+      showCheckAnimation = true;
+      indexAnimado = null;
+    });
+
     final ahora = DateTime.now();
     if (_esHoy(ultimaMisionPrincipal)) return;
     final prefs = await SharedPreferences.getInstance();
@@ -165,12 +277,10 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
     while (fuerzaXP >= xpNecesaria(fuerzaNivel)) {
       fuerzaXP -= xpNecesaria(fuerzaNivel);
       fuerzaNivel++;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('💪 ¡Subiste a nivel $fuerzaNivel en Fuerza!')),
-      );
+      mostrarDialogoNivel(fuerzaNivel); // Muestra el modal
     }
 
-    await agregarXpDelDia(xpGanada);
+    // await agregarXpDelDia(xpGanada); // Descomenta si tienes esta función
     await prefs.setInt('fuerza_xp', fuerzaXP);
     await prefs.setInt('fuerza_nivel', fuerzaNivel);
     await prefs.setString('ultima_mision_fuerza', ahora.toIso8601String());
@@ -183,6 +293,11 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
     final id = indicesMisionesDia[index];
     if (completadasHoy[id] == true) return;
 
+    setState(() {
+      showCheckAnimation = true;
+      indexAnimado = index;
+    });
+
     final xp = xpMiniMisiones[id] ?? 2;
     fuerzaXP += xp;
     completadasHoy[id] = true;
@@ -190,12 +305,10 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
     while (fuerzaXP >= xpNecesaria(fuerzaNivel)) {
       fuerzaXP -= xpNecesaria(fuerzaNivel);
       fuerzaNivel++;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('💪 ¡Subiste a nivel $fuerzaNivel en Fuerza!')),
-      );
+      mostrarDialogoNivel(fuerzaNivel); // Muestra el modal
     }
 
-    await agregarXpDelDia(xp);
+    // await agregarXpDelDia(xp); // Descomenta si tienes esta función
     await prefs.setInt('fuerza_xp', fuerzaXP);
     await prefs.setInt('fuerza_nivel', fuerzaNivel);
     await prefs.setStringList(
@@ -236,136 +349,163 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
       ),
       body: cargando
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Nivel: $fuerzaNivel',
-                      style: TextStyle(
-                          fontSize: 24,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(
-                    value: fuerzaXP / xpMax,
-                    backgroundColor:
-                        isDarkMode ? Colors.grey[800] : Colors.grey[300],
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Colors.amber),
-                    minHeight: 12,
-                  ),
-                  const SizedBox(height: 10),
-                  Text('$fuerzaXP / $xpMax XP',
-                      style: TextStyle(
-                          color: isDarkMode
-                              ? AppColors.darkSecondaryText
-                              : AppColors.lightSecondaryText)),
-                  const SizedBox(height: 30),
-                  Text('🏋️ Misión principal:',
-                      style: TextStyle(
-                          fontSize: 20,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  Text('Realiza 30 minutos de ejercicio físico intenso hoy.',
-                      style: TextStyle(
-                          color: isDarkMode
-                              ? AppColors.darkSecondaryText
-                              : AppColors.lightSecondaryText)),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed:
-                        puedeHacerPrincipal ? completarMisionPrincipal : null,
-                    icon: const Icon(Icons.fitness_center),
-                    label: Text(puedeHacerPrincipal
-                        ? 'Completar misión (+XP aleatoria)'
-                        : 'Ya completada hoy'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  if (!puedeHacerPrincipal)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                          '⏳ Nuevo intento en: ${_formatearDuracion(tiempoRestante)}',
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nivel: $fuerzaNivel',
+                          style: TextStyle(
+                              fontSize: 24,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(
+                        value: fuerzaXP / xpMax,
+                        backgroundColor:
+                            isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.amber),
+                        minHeight: 12,
+                      ),
+                      const SizedBox(height: 10),
+                      Text('$fuerzaXP / $xpMax XP',
                           style: TextStyle(
                               color: isDarkMode
                                   ? AppColors.darkSecondaryText
                                   : AppColors.lightSecondaryText)),
-                    ),
-                  const SizedBox(height: 40),
-                  Text('🎯 Mini-misiones del día:',
-                      style: TextStyle(
-                          fontSize: 20,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  ...List.generate(indicesMisionesDia.length, (i) {
-                    final idx = indicesMisionesDia[i];
-                    final mision = todasLasMisiones[idx];
-                    final hecha = completadasHoy[idx] == true;
-                    final xp = xpMiniMisiones[idx] ?? 2;
-
-                    return Card(
-                      color: isDarkMode
-                          ? (hecha ? Colors.grey[900] : Colors.black)
-                          : (hecha ? Colors.grey[300] : Colors.white),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 3,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        title: Text(
-                          mision.descripcion,
+                      const SizedBox(height: 30),
+                      Text('🏋️ Misión principal:',
                           style: TextStyle(
-                            color: isDarkMode
-                                ? AppColors.darkText
-                                : AppColors.lightText,
-                          ),
+                              fontSize: 20,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      Text(
+                          'Realiza 30 minutos de ejercicio físico intenso hoy.',
+                          style: TextStyle(
+                              color: isDarkMode
+                                  ? AppColors.darkSecondaryText
+                                  : AppColors.lightSecondaryText)),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: puedeHacerPrincipal
+                            ? completarMisionPrincipal
+                            : null,
+                        icon: const Icon(Icons.fitness_center),
+                        label: Text(puedeHacerPrincipal
+                            ? 'Completar misión (+XP aleatoria)'
+                            : 'Ya completada hoy'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 14),
+                          textStyle: const TextStyle(fontSize: 16),
                         ),
-                        subtitle: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '+${xp} XP',
+                      ),
+                      if (!puedeHacerPrincipal)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                              '⏳ Nuevo intento en: ${_formatearDuracion(tiempoRestante)}',
+                              style: TextStyle(
+                                  color: isDarkMode
+                                      ? AppColors.darkSecondaryText
+                                      : AppColors.lightSecondaryText)),
+                        ),
+                      const SizedBox(height: 40),
+                      Text('🎯 Mini-misiones del día:',
+                          style: TextStyle(
+                              fontSize: 20,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      ...List.generate(indicesMisionesDia.length, (i) {
+                        final idx = indicesMisionesDia[i];
+                        final mision = todasLasMisiones[idx];
+                        final hecha = completadasHoy[idx] == true;
+                        final xp = xpMiniMisiones[idx] ?? 2;
+
+                        return Card(
+                          color: isDarkMode
+                              ? (hecha ? Colors.grey[900] : Colors.black)
+                              : (hecha ? Colors.grey[300] : Colors.white),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          elevation: 3,
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          child: ListTile(
+                            title: Text(
+                              mision.descripcion,
                               style: TextStyle(
                                 color: isDarkMode
-                                    ? Colors.amber[300]
-                                    : Colors.amber[800],
+                                    ? AppColors.darkText
+                                    : AppColors.lightText,
                               ),
                             ),
-                            if (hecha)
-                              const Text(
-                                '⏳ Disponible mañana',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.grey,
+                            subtitle: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '+${xp} XP',
+                                  style: TextStyle(
+                                    color: isDarkMode
+                                        ? Colors.amber[300]
+                                        : Colors.amber[800],
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
-                        trailing: hecha
-                            ? const Icon(Icons.check, color: Colors.grey)
-                            : IconButton(
-                                icon: const Icon(Icons.check_circle,
-                                    color: Colors.amber),
-                                onPressed: () => completarMiniMision(i),
-                              ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
+                                if (hecha)
+                                  const Text(
+                                    '⏳ Disponible mañana',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            trailing: hecha
+                                ? const Icon(Icons.check, color: Colors.grey)
+                                : IconButton(
+                                    icon: const Icon(Icons.check_circle,
+                                        color: Colors.amber),
+                                    onPressed: () => completarMiniMision(i),
+                                  ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                // ANIMACIÓN DE PALOMITA LOCAL
+                if (showCheckAnimation)
+                  Center(
+                    child: Lottie.asset(
+                      'assets/animations/palimita.json',
+                      width: 200,
+                      height: 200,
+                      repeat: false,
+                      onLoaded: (composition) {
+                        Future.delayed(composition.duration, () {
+                          if (mounted) {
+                            setState(() {
+                              showCheckAnimation = false;
+                              indexAnimado = null;
+                            });
+                          }
+                        });
+                      },
+                    ),
+                  ),
+              ],
             ),
     );
   }
