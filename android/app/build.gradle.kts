@@ -35,8 +35,8 @@ android {
     applicationId = "com.catsoupstudios.solo_leveling"
     minSdk = 21
     targetSdk = 34
-    versionCode = 12
-    versionName = "1.1.7"
+    versionCode = 13
+    versionName = "1.1.13"
 }
 
     buildTypes {
