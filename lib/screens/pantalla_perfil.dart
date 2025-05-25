@@ -54,6 +54,11 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
     });
   }
 
+  Future<int> obtenerLifetimeXp() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('xp_general') ?? 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -73,7 +78,7 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
                   height: 220,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage(avatarPath), // ✅ se usa avatarPath aquí
+                      image: AssetImage(avatarPath),
                       fit: BoxFit.cover,
                       alignment: Alignment.topCenter,
                     ),
@@ -112,6 +117,36 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
                               Shadow(blurRadius: 4, color: Colors.black38),
                             ],
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        // ⭐️ XP de por vida
+                        FutureBuilder<int>(
+                          future: obtenerLifetimeXp(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData)
+                              return const SizedBox.shrink();
+                            return Row(
+                              children: [
+                                const Icon(Icons.auto_awesome_rounded,
+                                    color: Colors.amber, size: 28),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "XP de por vida: ${snapshot.data}",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: isDarkMode
+                                        ? Colors.amberAccent
+                                        : Colors.deepOrange,
+                                    shadows: [
+                                      Shadow(
+                                          blurRadius: 4, color: Colors.black26),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),

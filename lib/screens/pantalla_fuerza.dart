@@ -4,6 +4,7 @@ import 'package:lottie/lottie.dart';
 import 'package:flutter/scheduler.dart';
 import 'dart:math';
 import '../utils/colors.dart';
+import '../utils/xp_diaria.dart'; // Cambia la ruta si tu archivo está en otra carpeta
 
 class MiniMision {
   final String descripcion;
@@ -280,7 +281,7 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
       mostrarDialogoNivel(fuerzaNivel); // Muestra el modal
     }
 
-    // await agregarXpDelDia(xpGanada); // Descomenta si tienes esta función
+    await agregarXpDelDia(xpGanada); // Descomenta si tienes esta función
     await prefs.setInt('fuerza_xp', fuerzaXP);
     await prefs.setInt('fuerza_nivel', fuerzaNivel);
     await prefs.setString('ultima_mision_fuerza', ahora.toIso8601String());
@@ -308,7 +309,7 @@ class _PantallaFuerzaState extends State<PantallaFuerza> {
       mostrarDialogoNivel(fuerzaNivel); // Muestra el modal
     }
 
-    // await agregarXpDelDia(xp); // Descomenta si tienes esta función
+    await agregarXpDelDia(xp); // Descomenta si tienes esta función
     await prefs.setInt('fuerza_xp', fuerzaXP);
     await prefs.setInt('fuerza_nivel', fuerzaNivel);
     await prefs.setStringList(
