@@ -294,7 +294,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                         barrierDismissible: true,
                         barrierLabel: "Perfil",
                         transitionDuration: const Duration(milliseconds: 400),
-                        pageBuilder: (_, __, ___) => const PantallaPerfil(),
+                        pageBuilder: (_, __, ___) => PantallaPerfil(),
                         transitionBuilder: (_, animation, __, child) =>
                             SlideTransition(
                           position: Tween<Offset>(

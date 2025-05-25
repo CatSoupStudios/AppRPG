@@ -4,13 +4,10 @@ import 'package:flutter/scheduler.dart';
 import 'dart:math';
 import '../utils/colors.dart';
 import '../utils/xp_diaria.dart';
-
-class MiniMision {
-  final String descripcion;
-  final int xp;
-
-  MiniMision(this.descripcion, this.xp);
-}
+import '../data/misiones_inteligencia.dart';
+import '../widgets/modal_subir_nivel.dart';
+import '../widgets/palomita_check.dart';
+import '../utils/progreso.dart';
 
 class PantallaInteligencia extends StatefulWidget {
   @override
@@ -29,38 +26,9 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
   late final Ticker _ticker;
   Duration tiempoRestante = Duration.zero;
 
-  final List<MiniMision> todasLasMisiones = [
-    MiniMision("Leer 5 páginas de un libro 📖🧠", 1),
-    MiniMision("Ver un video educativo 📺🎓", 1),
-    MiniMision("Resolver un acertijo lógico 🧩🧠", 2),
-    MiniMision("Meditar 10 minutos 🧘🌀", 1),
-    MiniMision("Escribir una idea o reflexión ✍️💭", 1),
-    MiniMision("Escuchar un podcast de ciencia 🎧🔬", 1),
-    MiniMision("Aprender una palabra nueva en otro idioma 🗣️🌍", 1),
-    MiniMision("Memorizar 3 datos random 🧠🎲", 1),
-    MiniMision("Hacer 5 operaciones matemáticas ➗🧠", 2),
-    MiniMision("Investigar algo que no entiendas 🔎📚", 2),
-    MiniMision("Leer un artículo científico 📄🔬", 1),
-    MiniMision("Subrayar 3 ideas importantes 🖍️✨", 1),
-    MiniMision("Escribir una micro historia 📝📖", 1),
-    MiniMision("Resolver un Sudoku fácil 🧠🔢", 2),
-    MiniMision("Describir lo que aprendiste hoy 💡🧠", 1),
-    MiniMision("Aprender una técnica de estudio 🧠📘", 1),
-    MiniMision("Explicar algo con tus palabras 🗯️🤔", 1),
-    MiniMision("Aprender algo sobre filosofía 📚🧠", 2),
-    MiniMision("Escuchar meditación guiada 🎧🧘", 1),
-    MiniMision("Buscar cómo funciona algo ⚙️🔍", 2),
-    MiniMision("Buscar el origen de una palabra 🧬🔠", 1),
-    MiniMision("Ver una TED Talk 🎙️💡", 1),
-    MiniMision("Leer sobre otra cultura 🌎📘", 1),
-    MiniMision("Escribir lo que sentiste al meditar 🧘‍♂️📝", 1),
-    MiniMision("Contemplar sin celular 10 mins 🧠📵", 1),
-    MiniMision("Visualizar tu día ideal 🌄🧠", 1),
-    MiniMision("Escribir una idea que cambió tu vida ✍️💫", 2),
-    MiniMision("Describir una emoción sin usar su nombre 🧠🎭", 2),
-    MiniMision("Leer un mito o leyenda clásica 📜🐉", 1),
-    MiniMision("Ver un documental corto 🎥🧠", 1),
-  ];
+  bool showCheckAnimation = false;
+  int? indexAnimado;
+  String? nombreInvocador;
 
   @override
   void initState() {
@@ -110,6 +78,7 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
         _getDateTime(prefs.getString('ultima_mision_inteligencia'));
     ultimaGeneracion =
         _getDateTime(prefs.getString('ultima_generacion_inteligencia'));
+    nombreInvocador = prefs.getString('nombre_invocador') ?? "Invocador";
 
     final mapaXpRaw = prefs.getStringList('xp_misiones_inteligencia') ?? [];
     xpMiniMisiones = {
@@ -131,7 +100,7 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
       final random = Random();
       final nuevas = <int>{};
       while (nuevas.length < 5) {
-        nuevas.add(random.nextInt(todasLasMisiones.length));
+        nuevas.add(random.nextInt(todasLasMisionesInteligencia.length));
       }
       indicesMisionesDia = nuevas.toList();
       xpMiniMisiones = {
@@ -153,6 +122,11 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
   }
 
   Future<void> completarMisionPrincipal() async {
+    setState(() {
+      showCheckAnimation = true;
+      indexAnimado = null;
+    });
+
     final ahora = DateTime.now();
     if (_esHoy(ultimaMisionPrincipal)) return;
     final prefs = await SharedPreferences.getInstance();
@@ -164,10 +138,10 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
     while (inteligenciaXP >= xpNecesaria(inteligenciaNivel)) {
       inteligenciaXP -= xpNecesaria(inteligenciaNivel);
       inteligenciaNivel++;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                '🧠 ¡Subiste a nivel $inteligenciaNivel en Inteligencia!')),
+      await mostrarDialogoSubirNivel(
+        context,
+        nombreInvocador: nombreInvocador ?? 'Invocador',
+        nivel: inteligenciaNivel,
       );
     }
 
@@ -177,6 +151,8 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
     await prefs.setString(
         'ultima_mision_inteligencia', ahora.toIso8601String());
 
+    await sumarMisionCompletada(); // ✅ misión principal
+
     setState(() {});
   }
 
@@ -185,6 +161,11 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
     final id = indicesMisionesDia[index];
     if (completadasHoy[id] == true) return;
 
+    setState(() {
+      showCheckAnimation = true;
+      indexAnimado = index;
+    });
+
     final xp = xpMiniMisiones[id] ?? 2;
     inteligenciaXP += xp;
     completadasHoy[id] = true;
@@ -192,10 +173,10 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
     while (inteligenciaXP >= xpNecesaria(inteligenciaNivel)) {
       inteligenciaXP -= xpNecesaria(inteligenciaNivel);
       inteligenciaNivel++;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                '🧠 ¡Subiste a nivel $inteligenciaNivel en Inteligencia!')),
+      await mostrarDialogoSubirNivel(
+        context,
+        nombreInvocador: nombreInvocador ?? 'Invocador',
+        nivel: inteligenciaNivel,
       );
     }
 
@@ -208,6 +189,8 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
             .where((e) => e.value)
             .map((e) => e.key.toString())
             .toList());
+
+    await sumarMisionCompletada(); // ✅ mini-misión
 
     setState(() {});
   }
@@ -240,137 +223,143 @@ class _PantallaInteligenciaState extends State<PantallaInteligencia> {
       ),
       body: cargando
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Nivel: $inteligenciaNivel',
-                      style: TextStyle(
-                          fontSize: 24,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(
-                    value: inteligenciaXP / xpMax,
-                    backgroundColor:
-                        isDarkMode ? Colors.grey[800] : Colors.grey[300],
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Colors.amber),
-                    minHeight: 12,
-                  ),
-                  const SizedBox(height: 10),
-                  Text('$inteligenciaXP / $xpMax XP',
-                      style: TextStyle(
-                          color: isDarkMode
-                              ? AppColors.darkSecondaryText
-                              : AppColors.lightSecondaryText)),
-                  const SizedBox(height: 30),
-                  Text('📘 Misión principal:',
-                      style: TextStyle(
-                          fontSize: 20,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  Text(
-                      'Haz una sesión de 30 minutos de aprendizaje profundo hoy.',
-                      style: TextStyle(
-                          color: isDarkMode
-                              ? AppColors.darkSecondaryText
-                              : AppColors.lightSecondaryText)),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed:
-                        puedeHacerPrincipal ? completarMisionPrincipal : null,
-                    icon: const Icon(Icons.psychology_alt),
-                    label: Text(puedeHacerPrincipal
-                        ? 'Completar misión (+XP aleatoria)'
-                        : 'Ya completada hoy'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  if (!puedeHacerPrincipal)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                          '⏳ Nuevo intento en: ${_formatearDuracion(tiempoRestante)}',
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nivel: $inteligenciaNivel',
+                          style: TextStyle(
+                              fontSize: 24,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(
+                        value: xpMax > 0 ? inteligenciaXP / xpMax : 0,
+                        backgroundColor:
+                            isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.amber),
+                        minHeight: 12,
+                      ),
+                      const SizedBox(height: 10),
+                      Text('$inteligenciaXP / $xpMax XP',
                           style: TextStyle(
                               color: isDarkMode
                                   ? AppColors.darkSecondaryText
                                   : AppColors.lightSecondaryText)),
-                    ),
-                  const SizedBox(height: 40),
-                  Text('🎯 Mini-misiones del día:',
-                      style: TextStyle(
-                          fontSize: 20,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  ...List.generate(indicesMisionesDia.length, (i) {
-                    final idx = indicesMisionesDia[i];
-                    final mision = todasLasMisiones[idx];
-                    final hecha = completadasHoy[idx] == true;
-                    final xp = xpMiniMisiones[idx] ?? 2;
-
-                    return Card(
-                      color: isDarkMode
-                          ? (hecha ? Colors.grey[900] : Colors.black)
-                          : (hecha ? Colors.grey[300] : Colors.white),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 3,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        title: Text(
-                          mision.descripcion,
+                      const SizedBox(height: 30),
+                      Text('📚 Misión principal:',
                           style: TextStyle(
-                            color: isDarkMode
-                                ? AppColors.darkText
-                                : AppColors.lightText,
+                              fontSize: 20,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      Text('Dedica 30 minutos a aprender algo nuevo.',
+                          style: TextStyle(
+                              color: isDarkMode
+                                  ? AppColors.darkSecondaryText
+                                  : AppColors.lightSecondaryText)),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: puedeHacerPrincipal
+                            ? completarMisionPrincipal
+                            : null,
+                        icon: const Icon(Icons.psychology_alt),
+                        label: Text(puedeHacerPrincipal
+                            ? 'Completar misión (+XP aleatoria)'
+                            : 'Ya completada hoy'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 14),
+                          textStyle: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      if (!puedeHacerPrincipal)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            '⏳ Nuevo intento en: ${_formatearDuracion(tiempoRestante)}',
+                            style: TextStyle(
+                                color: isDarkMode
+                                    ? AppColors.darkSecondaryText
+                                    : AppColors.lightSecondaryText),
                           ),
                         ),
-                        subtitle: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '+${xp} XP',
-                              style: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.amber[300]
-                                    : Colors.amber[800],
-                              ),
-                            ),
-                            if (hecha)
-                              const Text(
-                                '⏳ Disponible mañana',
+                      const SizedBox(height: 40),
+                      Text('🧩 Mini-misiones del día:',
+                          style: TextStyle(
+                              fontSize: 20,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      ...List.generate(indicesMisionesDia.length, (i) {
+                        final idx = indicesMisionesDia[i];
+                        final mision = todasLasMisionesInteligencia[idx];
+                        final hecha = completadasHoy[idx] == true;
+                        final xp = xpMiniMisiones[idx] ?? 2;
+
+                        return Card(
+                          color: isDarkMode
+                              ? (hecha ? Colors.grey[900] : Colors.black)
+                              : (hecha ? Colors.grey[300] : Colors.white),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          elevation: 3,
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          child: ListTile(
+                            title: Text(mision.descripcion,
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: hecha
-                            ? const Icon(Icons.check, color: Colors.grey)
-                            : IconButton(
-                                icon: const Icon(Icons.check_circle,
-                                    color: Colors.amber),
-                                onPressed: () => completarMiniMision(i),
-                              ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
+                                    color: isDarkMode
+                                        ? AppColors.darkText
+                                        : AppColors.lightText)),
+                            subtitle: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('+${xp} XP',
+                                    style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.amber[300]
+                                            : Colors.amber[800])),
+                                if (hecha)
+                                  const Text('⏳ Disponible mañana',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.grey)),
+                              ],
+                            ),
+                            trailing: hecha
+                                ? const Icon(Icons.check, color: Colors.grey)
+                                : IconButton(
+                                    icon: const Icon(Icons.check_circle,
+                                        color: Colors.amber),
+                                    onPressed: () => completarMiniMision(i),
+                                  ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                PalomitaCheck(
+                  show: showCheckAnimation,
+                  onComplete: () {
+                    setState(() {
+                      showCheckAnimation = false;
+                      indexAnimado = null;
+                    });
+                  },
+                ),
+              ],
             ),
     );
   }

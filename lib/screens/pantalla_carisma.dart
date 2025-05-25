@@ -4,13 +4,10 @@ import 'package:flutter/scheduler.dart';
 import 'dart:math';
 import '../utils/colors.dart';
 import '../utils/xp_diaria.dart';
-
-class MiniMision {
-  final String descripcion;
-  final int xp;
-
-  MiniMision(this.descripcion, this.xp);
-}
+import '../data/misiones_carisma.dart';
+import '../widgets/modal_subir_nivel.dart';
+import '../widgets/palomita_check.dart';
+import '../utils/progreso.dart';
 
 class PantallaCarisma extends StatefulWidget {
   @override
@@ -29,38 +26,9 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
   late final Ticker _ticker;
   Duration tiempoRestante = Duration.zero;
 
-  final List<MiniMision> todasLasMisiones = [
-    MiniMision("Haz contacto visual con 3 personas hoy 👀💥", 1),
-    MiniMision("Sonríe intencionalmente a alguien que no conoces 😄✨", 1),
-    MiniMision("Hazle un cumplido genuino a alguien hoy 🗣️❤️", 1),
-    MiniMision("Escucha a alguien sin interrumpir por 2 minutos 👂🕰️", 1),
-    MiniMision("Mira al espejo y di algo positivo de ti 🪞💬", 1),
-    MiniMision("Grábate diciendo algo que crees con fuerza 🎤🔥", 2),
-    MiniMision("Cuéntale algo bueno de tu día a alguien 🗣️🌞", 1),
-    MiniMision("Haz una pregunta profunda a alguien 🤔🧠", 2),
-    MiniMision("Comparte una historia personal corta 📖💭", 1),
-    MiniMision("Inicia una conversación con alguien nuevo 👋😌", 2),
-    MiniMision("Vístete como realmente te gusta hoy 👕😎", 1),
-    MiniMision("Di algo que piensas aunque te dé pena 💭🫣", 2),
-    MiniMision("Haz reír a alguien intencionalmente 😂💥", 1),
-    MiniMision("Escribe una carta o mensaje sincero 💌🫂", 2),
-    MiniMision("Expresa desacuerdo con respeto ✋🤝", 1),
-    MiniMision("Sube una foto o video siendo tú sin filtros 📷🙌", 2),
-    MiniMision("Llama a alguien en vez de solo mandar texto 📞🤗", 1),
-    MiniMision("Recuerda el nombre de alguien nuevo 🧠📛", 1),
-    MiniMision("Haz una pregunta en público o grupo 💬😳", 2),
-    MiniMision("Comparte una recomendación sincera 📚🎬", 1),
-    MiniMision("Evita hablar mal de alguien por todo un día 🙊🚫", 2),
-    MiniMision("Da las gracias de forma creativa 🙏🎨", 1),
-    MiniMision("Haz un mini discurso frente al espejo 🎙️🪞", 1),
-    MiniMision("Saluda con energía al entrar a un lugar 👋⚡", 1),
-    MiniMision("Muestra entusiasmo al escuchar algo que te cuenten 😃👂", 1),
-    MiniMision("Practica decir “no” con firmeza y respeto ❌🧘", 2),
-    MiniMision("Conecta con alguien hablando de algo profundo 🌌🗣️", 2),
-    MiniMision("Publica una opinión sincera sin miedo 💬🔥", 2),
-    MiniMision("Pide retroalimentación sincera a alguien 📝😅", 2),
-    MiniMision("Hazte notar sin esforzarte. Solo sé tú 😎💫", 1),
-  ];
+  bool showCheckAnimation = false;
+  int? indexAnimado;
+  String? nombreInvocador;
 
   @override
   void initState() {
@@ -110,6 +78,7 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
         _getDateTime(prefs.getString('ultima_mision_carisma'));
     ultimaGeneracion =
         _getDateTime(prefs.getString('ultima_generacion_carisma'));
+    nombreInvocador = prefs.getString('nombre_invocador') ?? "Invocador";
 
     final mapaXpRaw = prefs.getStringList('xp_misiones_carisma') ?? [];
     xpMiniMisiones = {
@@ -129,7 +98,7 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
       final random = Random();
       final nuevas = <int>{};
       while (nuevas.length < 5) {
-        nuevas.add(random.nextInt(todasLasMisiones.length));
+        nuevas.add(random.nextInt(todasLasMisionesCarisma.length));
       }
       indicesMisionesDia = nuevas.toList();
       xpMiniMisiones = {
@@ -151,6 +120,11 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
   }
 
   Future<void> completarMisionPrincipal() async {
+    setState(() {
+      showCheckAnimation = true;
+      indexAnimado = null;
+    });
+
     final ahora = DateTime.now();
     if (_esHoy(ultimaMisionPrincipal)) return;
     final prefs = await SharedPreferences.getInstance();
@@ -162,9 +136,10 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
     while (carismaXP >= xpNecesaria(carismaNivel)) {
       carismaXP -= xpNecesaria(carismaNivel);
       carismaNivel++;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('😎 ¡Subiste a nivel $carismaNivel en Carisma!')),
+      await mostrarDialogoSubirNivel(
+        context,
+        nombreInvocador: nombreInvocador ?? 'Invocador',
+        nivel: carismaNivel,
       );
     }
 
@@ -172,6 +147,8 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
     await prefs.setInt('carisma_xp', carismaXP);
     await prefs.setInt('carisma_nivel', carismaNivel);
     await prefs.setString('ultima_mision_carisma', ahora.toIso8601String());
+
+    await sumarMisionCompletada();
 
     setState(() {});
   }
@@ -181,6 +158,11 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
     final id = indicesMisionesDia[index];
     if (completadasHoy[id] == true) return;
 
+    setState(() {
+      showCheckAnimation = true;
+      indexAnimado = index;
+    });
+
     final xp = xpMiniMisiones[id] ?? 2;
     carismaXP += xp;
     completadasHoy[id] = true;
@@ -188,9 +170,10 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
     while (carismaXP >= xpNecesaria(carismaNivel)) {
       carismaXP -= xpNecesaria(carismaNivel);
       carismaNivel++;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('😎 ¡Subiste a nivel $carismaNivel en Carisma!')),
+      await mostrarDialogoSubirNivel(
+        context,
+        nombreInvocador: nombreInvocador ?? 'Invocador',
+        nivel: carismaNivel,
       );
     }
 
@@ -203,6 +186,8 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
             .where((e) => e.value)
             .map((e) => e.key.toString())
             .toList());
+
+    await sumarMisionCompletada();
 
     setState(() {});
   }
@@ -235,137 +220,145 @@ class _PantallaCarismaState extends State<PantallaCarisma> {
       ),
       body: cargando
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Nivel: $carismaNivel',
-                      style: TextStyle(
-                          fontSize: 24,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(
-                    value: carismaXP / xpMax,
-                    backgroundColor:
-                        isDarkMode ? Colors.grey[800] : Colors.grey[300],
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Colors.amber),
-                    minHeight: 12,
-                  ),
-                  const SizedBox(height: 10),
-                  Text('$carismaXP / $xpMax XP',
-                      style: TextStyle(
-                          color: isDarkMode
-                              ? AppColors.darkSecondaryText
-                              : AppColors.lightSecondaryText)),
-                  const SizedBox(height: 30),
-                  Text('🎤 Misión principal:',
-                      style: TextStyle(
-                          fontSize: 20,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  Text(
-                      'Exprésate con autenticidad durante 30 minutos. Sin máscaras. Sin filtros.',
-                      style: TextStyle(
-                          color: isDarkMode
-                              ? AppColors.darkSecondaryText
-                              : AppColors.lightSecondaryText)),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed:
-                        puedeHacerPrincipal ? completarMisionPrincipal : null,
-                    icon: const Icon(Icons.mic),
-                    label: Text(puedeHacerPrincipal
-                        ? 'Completar misión (+XP aleatoria)'
-                        : 'Ya completada hoy'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  if (!puedeHacerPrincipal)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                          '⏳ Nuevo intento en: ${_formatearDuracion(tiempoRestante)}',
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nivel: $carismaNivel',
+                          style: TextStyle(
+                              fontSize: 24,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(
+                        value: xpMax > 0 ? carismaXP / xpMax : 0,
+                        backgroundColor:
+                            isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.amber),
+                        minHeight: 12,
+                      ),
+                      const SizedBox(height: 10),
+                      Text('$carismaXP / $xpMax XP',
                           style: TextStyle(
                               color: isDarkMode
                                   ? AppColors.darkSecondaryText
                                   : AppColors.lightSecondaryText)),
-                    ),
-                  const SizedBox(height: 40),
-                  Text('🎯 Mini-misiones del día:',
-                      style: TextStyle(
-                          fontSize: 20,
-                          color: isDarkMode
-                              ? AppColors.darkAccent
-                              : AppColors.lightText)),
-                  const SizedBox(height: 10),
-                  ...List.generate(indicesMisionesDia.length, (i) {
-                    final idx = indicesMisionesDia[i];
-                    final mision = todasLasMisiones[idx];
-                    final hecha = completadasHoy[idx] == true;
-                    final xp = xpMiniMisiones[idx] ?? 2;
-
-                    return Card(
-                      color: isDarkMode
-                          ? (hecha ? Colors.grey[900] : Colors.black)
-                          : (hecha ? Colors.grey[300] : Colors.white),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 3,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        title: Text(
-                          mision.descripcion,
+                      const SizedBox(height: 30),
+                      Text('🗣️ Misión principal:',
                           style: TextStyle(
+                              fontSize: 20,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Exprésate con autenticidad durante 30 minutos. Sin máscaras. Sin filtros.',
+                        style: TextStyle(
                             color: isDarkMode
-                                ? AppColors.darkText
-                                : AppColors.lightText,
+                                ? AppColors.darkSecondaryText
+                                : AppColors.lightSecondaryText),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: puedeHacerPrincipal
+                            ? completarMisionPrincipal
+                            : null,
+                        icon: const Icon(Icons.record_voice_over),
+                        label: Text(puedeHacerPrincipal
+                            ? 'Completar misión (+XP aleatoria)'
+                            : 'Ya completada hoy'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 14),
+                          textStyle: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                      if (!puedeHacerPrincipal)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            '⏳ Nuevo intento en: ${_formatearDuracion(tiempoRestante)}',
+                            style: TextStyle(
+                                color: isDarkMode
+                                    ? AppColors.darkSecondaryText
+                                    : AppColors.lightSecondaryText),
                           ),
                         ),
-                        subtitle: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '+${xp} XP',
-                              style: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.amber[300]
-                                    : Colors.amber[800],
-                              ),
-                            ),
-                            if (hecha)
-                              const Text(
-                                '⏳ Disponible mañana',
+                      const SizedBox(height: 40),
+                      Text('🎯 Mini-misiones del día:',
+                          style: TextStyle(
+                              fontSize: 20,
+                              color: isDarkMode
+                                  ? AppColors.darkAccent
+                                  : AppColors.lightText)),
+                      const SizedBox(height: 10),
+                      ...List.generate(indicesMisionesDia.length, (i) {
+                        final idx = indicesMisionesDia[i];
+                        final mision = todasLasMisionesCarisma[idx];
+                        final hecha = completadasHoy[idx] == true;
+                        final xp = xpMiniMisiones[idx] ?? 2;
+
+                        return Card(
+                          color: isDarkMode
+                              ? (hecha ? Colors.grey[900] : Colors.black)
+                              : (hecha ? Colors.grey[300] : Colors.white),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          elevation: 3,
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          child: ListTile(
+                            title: Text(mision.descripcion,
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: hecha
-                            ? const Icon(Icons.check, color: Colors.grey)
-                            : IconButton(
-                                icon: const Icon(Icons.check_circle,
-                                    color: Colors.amber),
-                                onPressed: () => completarMiniMision(i),
-                              ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
+                                    color: isDarkMode
+                                        ? AppColors.darkText
+                                        : AppColors.lightText)),
+                            subtitle: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('+${xp} XP',
+                                    style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.amber[300]
+                                            : Colors.amber[800])),
+                                if (hecha)
+                                  const Text('⏳ Disponible mañana',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.grey)),
+                              ],
+                            ),
+                            trailing: hecha
+                                ? const Icon(Icons.check, color: Colors.grey)
+                                : IconButton(
+                                    icon: const Icon(Icons.check_circle,
+                                        color: Colors.amber),
+                                    onPressed: () => completarMiniMision(i),
+                                  ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                PalomitaCheck(
+                  show: showCheckAnimation,
+                  onComplete: () {
+                    setState(() {
+                      showCheckAnimation = false;
+                      indexAnimado = null;
+                    });
+                  },
+                ),
+              ],
             ),
     );
   }

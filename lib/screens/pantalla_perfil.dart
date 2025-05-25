@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../rpg_home.dart';
@@ -26,11 +27,13 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
   };
 
   int nivelGeneral = 7;
+  int misionesCompletadas = 0;
 
   @override
   void initState() {
     super.initState();
     cargarDatos();
+    cargarMisionesCompletadas();
   }
 
   Future<void> cargarDatos() async {
@@ -54,9 +57,71 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
     });
   }
 
+  Future<void> cargarMisionesCompletadas() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      misionesCompletadas = prefs.getInt('misiones_completadas') ?? 0;
+    });
+  }
+
   Future<int> obtenerLifetimeXp() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('xp_general') ?? 0;
+  }
+
+  Future<void> _guardarNuevoNombre(String nuevoNombre) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('nombre_invocador', nuevoNombre);
+    setState(() {
+      nombreInvocador = nuevoNombre;
+    });
+  }
+
+  void _mostrarDialogoEditarNombre(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    TextEditingController _controller =
+        TextEditingController(text: nombreInvocador);
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) {
+        return CupertinoActionSheet(
+          title: const Text('Editar nombre de invocador'),
+          message: CupertinoTextField(
+            controller: _controller,
+            placeholder: 'Nuevo nombre',
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            style: TextStyle(
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
+            placeholderStyle: TextStyle(
+              color: isDarkMode ? Colors.white54 : Colors.black38,
+            ),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[850] : Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                final nuevoNombre = _controller.text.trim();
+                if (nuevoNombre.isNotEmpty) {
+                  _guardarNuevoNombre(nuevoNombre);
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Guardar'),
+              isDefaultAction: true,
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -70,7 +135,6 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
       body: SafeArea(
         child: Stack(
           children: [
-            // 📸 Imagen de perfil como fondo superior
             Column(
               children: [
                 Container(
@@ -91,21 +155,33 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
                         bottomRight: Radius.circular(16),
                       ),
                     ),
-                    padding: const EdgeInsets.only(left: 16, bottom: 16),
+                    padding:
+                        const EdgeInsets.only(left: 16, bottom: 16, right: 16),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          nombreInvocador,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(blurRadius: 8, color: Colors.black45),
-                            ],
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              nombreInvocador,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(blurRadius: 8, color: Colors.black45),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () => _mostrarDialogoEditarNombre(context),
+                              child: const Icon(Icons.edit,
+                                  size: 18, color: Colors.white70),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -118,33 +194,36 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        // ⭐️ XP de por vida
                         FutureBuilder<int>(
                           future: obtenerLifetimeXp(),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData)
                               return const SizedBox.shrink();
-                            return Row(
-                              children: [
-                                const Icon(Icons.auto_awesome_rounded,
-                                    color: Colors.amber, size: 28),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "XP de por vida: ${snapshot.data}",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: isDarkMode
-                                        ? Colors.amberAccent
-                                        : Colors.deepOrange,
-                                    shadows: [
-                                      Shadow(
-                                          blurRadius: 4, color: Colors.black26),
-                                    ],
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.auto_awesome_rounded,
+                                      color: Colors.amber, size: 18),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "XP de por vida: ${snapshot.data}",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: isDarkMode
+                                          ? Colors.amberAccent
+                                          : Colors.deepOrange,
+                                      shadows: [
+                                        const Shadow(
+                                          blurRadius: 3,
+                                          color: Colors.black26,
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             );
                           },
                         ),
@@ -195,10 +274,24 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
                     }).toList(),
                   ),
                 ),
+                const SizedBox(
+                    height: 36), // más espacio visual abajo de los stats
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '✅ Misiones Completadas en Total: $misionesCompletadas',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: isDarkMode ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-
-            // 🔙 Flecha encima de todo
             Positioned(
               top: 8,
               left: 8,
