@@ -30,8 +30,9 @@ class _PantallaTiendaState extends State<PantallaTienda> {
   }
 
   Future<void> cargarBanners() async {
-    final response = await http
-        .get(Uri.parse('http://192.168.1.28:5000/tienda')); // <-- tu API
+    final response =
+        await http.get(Uri.parse('https://apprpg-api.onrender.com/tienda'));
+    // <-- tu API
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {
