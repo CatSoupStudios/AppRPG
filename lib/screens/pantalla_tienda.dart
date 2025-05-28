@@ -1,7 +1,8 @@
+import 'dart:convert';
+import 'dart:async'; // Import necesario para TimeoutException
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../utils/colors.dart';
 
 class PantallaTienda extends StatefulWidget {
@@ -30,15 +31,49 @@ class _PantallaTiendaState extends State<PantallaTienda> {
   }
 
   Future<void> cargarBanners() async {
-    final response =
-        await http.get(Uri.parse('https://apprpg-api.onrender.com/tienda'));
-    // <-- tu API
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    try {
+      print("Intentando cargar banners...");
+      final response = await http
+          .get(Uri.parse('https://apprpg-api.onrender.com/tienda'))
+          .timeout(const Duration(seconds: 15));
+
+      print('Status code: ${response.statusCode}');
+      print('Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          banners = data['banners'];
+          cargando = false;
+        });
+      } else {
+        print('Error: respuesta no OK de la API');
+        setState(() {
+          cargando = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Error al cargar la tienda: ${response.statusCode}')),
+        );
+      }
+    } on TimeoutException catch (_) {
+      print('Error: Timeout al cargar banners');
       setState(() {
-        banners = data['banners'];
         cargando = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Tiempo de espera agotado al cargar la tienda')),
+      );
+    } catch (e) {
+      print('Error en la petición HTTP: $e');
+      setState(() {
+        cargando = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar la tienda: $e')),
+      );
     }
   }
 
@@ -66,7 +101,6 @@ class _PantallaTiendaState extends State<PantallaTienda> {
     final oro = prefs.getInt('monedas') ?? 0;
     final bannersStrings = prefs.getStringList('banners_comprados') ?? [];
 
-    // Actualiza IDs locales para evitar duplicados
     final idsLocales = bannersStrings
         .map((e) => json.decode(e) as Map<String, dynamic>)
         .map((map) => map['id'].toString())
@@ -84,7 +118,6 @@ class _PantallaTiendaState extends State<PantallaTienda> {
     if (oro >= banner['precio']) {
       final nuevoOro = (oro - banner['precio']).toInt();
 
-      // Map con las claves que espera la mochila
       final bannerGuardado = {
         'id': banner['id'],
         'nombre': banner['nombre'],
@@ -127,162 +160,129 @@ class _PantallaTiendaState extends State<PantallaTienda> {
         backgroundColor:
             isDark ? AppColors.darkBackground : AppColors.lightBackground,
         elevation: 0,
-        title: const Text('Tienda 🛒'),
+        title: const Text('Tienda 🛒',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         iconTheme: IconThemeData(
           color: isDark ? AppColors.darkText : AppColors.lightText,
-        ),
-        titleTextStyle: TextStyle(
-          color: isDark ? AppColors.darkText : AppColors.lightText,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
         ),
       ),
       body: cargando
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 18, left: 24, right: 24),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.monetization_on,
-                          color: Colors.amber, size: 28),
-                      const SizedBox(width: 8),
-                      Text(
-                        "$oroActual",
-                        style: const TextStyle(
-                            color: Colors.amber,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20),
-                      ),
-                      const Spacer(),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: banners.length,
-                    itemBuilder: (context, index) {
-                      final banner = banners[index];
-                      final yaComprado =
-                          bannersCompradosIds.contains(banner['id'].toString());
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: banners.length,
+              itemBuilder: (context, index) {
+                final banner = banners[index];
+                final yaComprado = bannersCompradosIds.contains(banner['id']);
 
-                      return GestureDetector(
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            backgroundColor: isDark
-                                ? AppColors.darkBackground
-                                : AppColors.lightBackground,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20)),
-                            ),
-                            builder: (context) {
-                              return Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        banner['url_imagen'],
-                                        height: 180,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      banner['nombre'],
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark
-                                            ? AppColors.darkText
-                                            : AppColors.lightText,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      banner['descripcion'],
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: isDark
-                                            ? AppColors.darkSecondaryText
-                                            : AppColors.lightSecondaryText,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 14),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: yaComprado
-                                            ? Colors.grey
-                                            : Colors.amber,
-                                      ),
-                                      onPressed: yaComprado
-                                          ? null
-                                          : () => comprarBanner(banner),
-                                      child: Text(
-                                        yaComprado
-                                            ? 'Ya Comprado ✅'
-                                            : 'Comprar por ${banner['precio']} 🪙',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ],
+                return GestureDetector(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: isDark
+                          ? AppColors.darkBackground
+                          : AppColors.lightBackground,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      builder: (context) {
+                        return Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  banner['url_imagen'],
+                                  height: 180,
+                                  fit: BoxFit.cover,
                                 ),
-                              );
-                            },
-                          );
-                        },
-                        child: Card(
-                          color:
-                              isDark ? AppColors.darkCard : AppColors.lightCard,
-                          margin: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                banner['nombre'],
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? AppColors.darkText
+                                      : AppColors.lightText,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                banner['descripcion'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark
+                                      ? AppColors.darkSecondaryText
+                                      : AppColors.lightSecondaryText,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 14),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      yaComprado ? Colors.grey : Colors.amber,
+                                ),
+                                onPressed: yaComprado
+                                    ? null
+                                    : () => comprarBanner(banner),
+                                child: Text(
+                                  yaComprado
+                                      ? 'Ya Comprado ✅'
+                                      : 'Comprar por ${banner['precio']} 🪙',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
                           ),
-                          child: ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                banner['url_imagen'],
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            title: Text(
-                              banner['nombre'],
-                              style: TextStyle(
-                                color: isDark
-                                    ? AppColors.darkText
-                                    : AppColors.lightText,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${banner['precio']} 🪙',
-                              style: TextStyle(
-                                color: isDark
-                                    ? AppColors.darkSecondaryText
-                                    : AppColors.lightSecondaryText,
-                              ),
-                            ),
-                            trailing: yaComprado
-                                ? const Icon(Icons.check_circle,
-                                    color: Colors.green)
-                                : const Icon(Icons.shopping_cart_outlined),
-                          ),
+                        );
+                      },
+                    );
+                  },
+                  child: Card(
+                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                    margin: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          banner['url_imagen'],
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
                         ),
-                      );
-                    },
+                      ),
+                      title: Text(
+                        banner['nombre'],
+                        style: TextStyle(
+                          color:
+                              isDark ? AppColors.darkText : AppColors.lightText,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${banner['precio']} 🪙',
+                        style: TextStyle(
+                          color: isDark
+                              ? AppColors.darkSecondaryText
+                              : AppColors.lightSecondaryText,
+                        ),
+                      ),
+                      trailing: yaComprado
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : const Icon(Icons.shopping_cart_outlined),
+                    ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
     );
   }
