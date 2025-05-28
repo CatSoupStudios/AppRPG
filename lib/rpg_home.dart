@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 
 import 'models/clase_rpg.dart';
 import 'data/stats_base.dart';
@@ -21,6 +22,8 @@ import 'providers/theme_provider.dart';
 import './data/frases_diarias.dart';
 import 'screens/pantalla_perfil.dart';
 import '../effects/fluid_lines_background.dart';
+import 'screens/pantalla_mochila.dart';
+import 'screens/pantalla_tienda.dart';
 
 class RPGHome extends StatefulWidget {
   const RPGHome({super.key});
@@ -38,6 +41,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   int rachaActual = 0;
   bool fondoAnimado = true;
   bool cargandoPrefs = true;
+  String? bannerFondoUrl; // <- Para el fondo personalizado
 
   final Map<String, String> statEmojis = {
     'fuerza': '💪',
@@ -53,9 +57,33 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _cargarFondoAnimado().then((_) {
-      actualizarXPGeneralSiEsNuevoDia().then((_) => cargarDatos());
+    _cargarFondoAnimado().then((_) async {
+      await actualizarXPGeneralSiEsNuevoDia();
+      await cargarDatos();
+      await cargarFondoPersonalizado(); // <--- carga el fondo personalizado al iniciar
     });
+  }
+
+  Future<void> cargarFondoPersonalizado() async {
+    final prefs = await SharedPreferences.getInstance();
+    final fondoId = prefs.getString('banner_fondo');
+    final bannersStrings = prefs.getStringList('banners_comprados') ?? [];
+    if (fondoId != null && bannersStrings.isNotEmpty) {
+      final bannersList = bannersStrings
+          .map((e) => json.decode(e) as Map<String, dynamic>)
+          .toList();
+      final banner = bannersList.firstWhere(
+        (b) => b['id'].toString() == fondoId,
+        orElse: () => <String, dynamic>{}, // 👈 AQUÍ
+      );
+      setState(() {
+        bannerFondoUrl = banner.isNotEmpty ? banner['url'] : null;
+      });
+    } else {
+      setState(() {
+        bannerFondoUrl = null;
+      });
+    }
   }
 
   Future<void> _cargarFondoAnimado() async {
@@ -77,6 +105,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       cargarDatos();
       _cargarFondoAnimado();
+      cargarFondoPersonalizado(); // <--- recarga el fondo al volver
     }
   }
 
@@ -158,32 +187,79 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     if (lowerStat == 'fuerza') {
       Navigator.push(
               context, MaterialPageRoute(builder: (_) => PantallaFuerza()))
-          .then((_) => cargarDatos());
+          .then((_) {
+        cargarDatos();
+        cargarFondoPersonalizado();
+      });
     } else if (lowerStat == 'inteligencia') {
       Navigator.push(context,
-              MaterialPageRoute(builder: (_) => PantallaInteligencia()))
-          .then((_) => cargarDatos());
+          MaterialPageRoute(builder: (_) => PantallaInteligencia())).then((_) {
+        cargarDatos();
+        cargarFondoPersonalizado();
+      });
     } else if (lowerStat == 'defensa') {
       Navigator.push(
               context, MaterialPageRoute(builder: (_) => PantallaDefensa()))
-          .then((_) => cargarDatos());
+          .then((_) {
+        cargarDatos();
+        cargarFondoPersonalizado();
+      });
     } else if (lowerStat == 'agilidad') {
       Navigator.push(
               context, MaterialPageRoute(builder: (_) => PantallaAgilidad()))
-          .then((_) => cargarDatos());
+          .then((_) {
+        cargarDatos();
+        cargarFondoPersonalizado();
+      });
     } else if (lowerStat == 'vitalidad') {
       Navigator.push(
               context, MaterialPageRoute(builder: (_) => PantallaVitalidad()))
-          .then((_) => cargarDatos());
+          .then((_) {
+        cargarDatos();
+        cargarFondoPersonalizado();
+      });
     } else if (lowerStat == 'suerte') {
       Navigator.push(
               context, MaterialPageRoute(builder: (_) => PantallaSuerte()))
-          .then((_) => cargarDatos());
+          .then((_) {
+        cargarDatos();
+        cargarFondoPersonalizado();
+      });
     } else if (lowerStat == 'carisma') {
       Navigator.push(
               context, MaterialPageRoute(builder: (_) => PantallaCarisma()))
-          .then((_) => cargarDatos());
+          .then((_) {
+        cargarDatos();
+        cargarFondoPersonalizado();
+      });
     }
+  }
+
+  void _abrirPantallaMochila() {
+    Navigator.of(context)
+        .push(PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              PantallaMochila(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
+
+            final tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            final opacityTween = Tween<double>(begin: 0.0, end: 1.0);
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: FadeTransition(
+                opacity: animation.drive(opacityTween),
+                child: child,
+              ),
+            );
+          },
+        ))
+        .then((_) =>
+            cargarFondoPersonalizado()); // <-- Recarga el fondo al volver de la mochila
   }
 
   @override
@@ -218,7 +294,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: 1),
                   child: Row(
                     children: [
                       ClipOval(
@@ -282,8 +358,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                           context,
                           MaterialPageRoute(
                               builder: (_) => const PantallaSettings()),
-                        ).then((_) =>
-                            _cargarFondoAnimado()); // refresca el fondo al volver de ajustes
+                        ).then((_) => _cargarFondoAnimado());
                       },
                     ),
                     IconButton(
@@ -316,11 +391,28 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                         builder: (_) => const PantallaCalendario(),
                       ),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.backpack_rounded,
+                          color: Colors.amber),
+                      tooltip: "Ver drops y mejoras",
+                      onPressed: _abrirPantallaMochila,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.storefront_rounded,
+                          color: Colors.amber),
+                      tooltip: "Abrir tienda",
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => PantallaTienda()),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 0),
             Text(
               "📊 Tus Stats",
               style: TextStyle(
@@ -349,19 +441,18 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(
                         vertical: 18, horizontal: 14),
                     decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? Colors.white.withOpacity(0.03)
-                          : Colors.white.withOpacity(0.6),
+                      color: Colors.black
+                          .withOpacity(0.22), // SIEMPRE NEGRO TRANSLÚCIDO
                       borderRadius: BorderRadius.circular(26),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withOpacity(0.09),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
                       ],
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withOpacity(0.10),
                       ),
                     ),
                     child: Column(
@@ -412,7 +503,37 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor:
           isDarkMode ? AppColors.darkBackground : AppColors.lightBackground,
-      body: fondoAnimado ? FluidLinesBackground(child: contenido) : contenido,
+      body: Stack(
+        children: [
+          // 1. Banner personalizado (al fondo)
+          if (bannerFondoUrl != null)
+            Positioned.fill(
+              child: Image.network(
+                bannerFondoUrl!,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
+            ),
+          // 2. Fondo animado, siempre encima del banner (o solo si fondoAnimado es true)
+          if (fondoAnimado)
+            Positioned.fill(
+              child: FluidLinesBackground(child: Container()),
+            ),
+          // 3. Overlay oscuro para legibilidad (solo si hay banner)
+          if (bannerFondoUrl != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.30),
+              ),
+            ),
+          // 4. El contenido/UI de la app, siempre arriba de todo
+          contenido,
+        ],
+      ),
     );
   }
 }

@@ -13,4 +13,8 @@ class AppColors {
   static const Color darkText = Colors.white;
   static const Color darkSecondaryText = Colors.white54;
   static const Color darkAccent = Colors.amber;
+
+  // Colores para tarjetas (cards)
+  static const Color lightCard = Color(0xFFF8F8F8); // nuevo
+  static const Color darkCard = Color(0xFF1E1E1E); // nuevo
 }

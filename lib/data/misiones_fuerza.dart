@@ -1,39 +1,41 @@
-class MiniMision {
-  final String descripcion;
-  final int xp;
-  MiniMision(this.descripcion, this.xp);
-}
+List<String> generarMisionesFuerza(int nivel) {
+  int repsBase = 5 + (nivel * 2);
+  int minBase = 5 + (nivel ~/ 2);
 
-// Aquí van TODAS tus mini-misiones:
-final List<MiniMision> todasLasMisionesFuerza = [
-  MiniMision("Hacer 10 lagartijas 💪🔥", 1),
-  MiniMision("3 sets de 15 sentadillas 🦵🏽💢", 1),
-  MiniMision("Subir escaleras 5 veces 🏃‍♂️⛰️", 1),
-  MiniMision("Plank por 1 minuto 🧱⏱️", 1),
-  MiniMision("Ayudar con tarea física pesada 🧰💥", 2),
-  MiniMision("Cargar cosas 10 min 📦💪", 2),
-  MiniMision("Caminar con peso 15 min 🥾🎒", 2),
-  MiniMision("20 burpees 🔥😤", 2),
-  MiniMision("Rutina rápida de brazos (10 min) 💪⏳", 2),
-  MiniMision("2 sets de 20 saltos en cuclillas 🏋️‍♂️🌀", 1),
-  MiniMision("Hacer rutina HIIT de 20+ min ⚡🔥", 3),
-  MiniMision("Cargar mochilas pesadas 10 min 🎒💢", 2),
-  MiniMision("Flexiones + plancha + sentadillas combo 💥🛠️", 3),
-  MiniMision("Levantar cubetas llenas 5 veces 🪣💪", 2),
-  MiniMision("Barrer patio intensamente 20 min 🧹🔥", 2),
-  MiniMision("Trote corto con mochila 🏃🎒", 2),
-  MiniMision("Push-ups sobre una mano (con apoyo) ✋😮‍💨", 2),
-  MiniMision("Prensa de piernas casera (objeto pesado) 🦿🏋️‍♀️", 2),
-  MiniMision("Abdominales + sentadillas (combo) 🧍‍♂️💣", 2),
-  MiniMision("Limpiar cuarto intensamente 🧽💥", 1),
-  MiniMision("Tender cama y ordenar sin parar (5 min) 🛏️⏱️", 1),
-  MiniMision("Cargar galones de agua por 5 min 💧🪣", 2),
-  MiniMision("Mover muebles pesados (ayuda) 🪑💪", 2),
-  MiniMision("Estiramientos con tensión de fuerza 🧘‍♂️💢", 1),
-  MiniMision("Práctica de box o golpes al aire (shadow) 🥊👊", 2),
-  MiniMision("Lanzar objeto pesado varias veces 🪨🏹", 2),
-  MiniMision("Saltos en caja o escalón 📦⬆️", 1),
-  MiniMision("Dips con silla (3 sets) 🪑↕️", 1),
-  MiniMision("Arrastrar mochila pesada por 10 min 🎒➡️💢", 2),
-  MiniMision("Mini circuito: 5 flexiones, 10 sentadillas, 15 saltos 🔁🔥", 2),
-];
+  List<String> plantillas = [
+    'Haz ${repsBase + 3} lagartijas al amanecer 💪',
+    'Sube escaleras ${repsBase ~/ 2} veces sin descansar 🧗‍♂️',
+    'Carga una mochila durante ${minBase + 1} minutos en silencio 🎒',
+    'Camina ${minBase + 5} minutos con buena postura 🚶‍♂️',
+    'Haz ${repsBase + 3} sentadillas profundas 🦵',
+    'Sostén una plancha por ${minBase * 2} segundos 🧘‍♂️',
+    'Haz ${repsBase + 4} abdominales sin pausa 🔥',
+    'Trote suave durante ${minBase + 2} minutos 🏃‍♂️',
+    'Haz ${repsBase + 1} jumping jacks como entrenamiento ninja 🥷',
+    'Carga peso por ${minBase + 3} minutos sin usar manos 🧳',
+    'Haz ${repsBase - 2} zancadas con respiración controlada 🧘‍♀️',
+    'Haz ${repsBase} flexiones de brazos estilo militar 🪖',
+    'Súbete a una silla y baja ${repsBase ~/ 2} veces con control 🪑',
+    'Pasea cargando un objeto pesado por ${minBase} minutos 🧱',
+    'Salta la cuerda ${repsBase + 5} veces (real o imaginaria) 🪢',
+    'Haz una serie de yoga de fuerza de ${minBase} minutos 🧘‍♂️',
+    'Camina rápido como si llegaras tarde por ${minBase + 2} minutos ⏰',
+    'Sube y baja una colina imaginaria ${repsBase ~/ 2} veces 🌄',
+    'Haz ${repsBase + 3} estocadas largas y profundas ⚔️',
+    'Corre en tu lugar por ${minBase + 4} minutos sin parar 🌀',
+    'Sostén una mochila con brazos extendidos por ${minBase * 2} segundos 🏋️‍♂️',
+    'Haz una caminata en cuclillas durante ${minBase} minutos 🦍',
+    'Arrástrate como soldado ${repsBase ~/ 2} metros 🪖',
+    'Levanta y baja una garrafa ${repsBase} veces (o imagina una) 💧',
+    'Haz sentadillas con salto ${repsBase + 1} veces 🐸',
+    'Corre a ritmo medio por ${minBase + 3} minutos 🏃‍♂️💨',
+    'Haz “silla invisible” durante ${minBase * 2} segundos 🪑🔥',
+    'Haz burpees ${repsBase - 1} veces sin morir 🧟‍♂️',
+    'Lleva un objeto en la cabeza y camina ${minBase} minutos 🤹‍♂️',
+    'Pelea con aire (sombra box) por ${minBase + 1} minutos 🥊',
+  ];
+
+  plantillas.shuffle();
+
+  return plantillas.take(30).toList();
+}
