@@ -1,41 +1,41 @@
-class MiniMision {
-  final String descripcion;
-  final int xp;
+List<String> generarMisionesVitalidad(int nivel) {
+  int repsBase = 5 + (nivel * 2);
+  int minBase = 5 + (nivel ~/ 2);
 
-  MiniMision(this.descripcion, this.xp);
+  List<String> plantillas = [
+    'Duerme al menos ${minBase + 7} horas esta noche 😴',
+    'Toma agua cada ${minBase + 1} horas durante el día 💧',
+    'Haz una siesta corta de ${minBase} minutos hoy 💤',
+    'Haz ${repsBase} respiraciones profundas al despertar 🫁',
+    'Realiza una caminata de ${minBase + 5} minutos al aire libre 🚶‍♂️',
+    'Prepara una comida saludable con al menos ${minBase + 2} ingredientes frescos 🥗',
+    'Estira tu cuerpo durante ${minBase + 2} minutos al comenzar el día 🤸‍♂️',
+    'Dedica ${minBase + 5} minutos a relajarte sin dispositivos 📵',
+    'Haz una rutina de autocuidado (mascarilla, baño caliente, etc.) durante ${minBase + 3} minutos 🛁',
+    'Come fruta o verdura ${repsBase} veces hoy 🍎',
+    'Escribe una lista de ${minBase + 2} cosas por las que agradeces hoy ✍️',
+    'Haz una sesión breve de meditación de ${minBase} minutos 🧘‍♂️',
+    'Haz ${repsBase} sentadillas para activar la circulación 🦵',
+    'Canta tu canción favorita ${repsBase} veces para liberar estrés 🎶',
+    'Sal a tomar el sol durante ${minBase + 4} minutos ☀️',
+    'Habla con un ser querido al menos ${repsBase ~/ 2} minutos hoy ☎️',
+    'Lee algo motivador durante ${minBase + 2} minutos 📚',
+    'Desconéctate de redes sociales por ${minBase * 2} minutos hoy 🔌',
+    'Date un masaje en manos o cuello durante ${minBase + 2} minutos 🤲',
+    'Pinta o dibuja algo sin juzgar el resultado durante ${minBase + 1} minutos 🎨',
+    'Danza libremente por la casa durante ${minBase + 3} minutos 💃',
+    'Haz una pausa activa cada ${minBase} horas mientras trabajas ⏰',
+    'Pon música relajante durante ${minBase + 3} minutos y solo escucha 🎧',
+    'Haz una postura de yoga restaurativa por ${minBase * 2} segundos 🧘‍♀️',
+    'Aromatiza tu cuarto con olores que te gusten por ${minBase} minutos 🌸',
+    'Lleva un snack saludable para media tarde 🥒',
+    'Baila frente al espejo por ${minBase + 2} minutos 🪞',
+    'Sonríe a alguien ${repsBase} veces hoy 😊',
+    'Haz una limpieza ligera de tu espacio durante ${minBase + 2} minutos 🧹',
+    'Visualiza algo positivo durante ${minBase * 2} segundos 🌈',
+  ];
+
+  plantillas.shuffle();
+
+  return plantillas.take(30).toList();
 }
-
-final List<MiniMision> todasLasMisionesVitalidad = [
-  MiniMision("Toma 2 vasos grandes de agua apenas despiertes 💧🥤", 1),
-  MiniMision("Prepara y disfruta un desayuno saludable 🥑🍞", 2),
-  MiniMision("Duerme una siesta corta de 20 minutos 😴⏰", 1),
-  MiniMision("Medita o respira profundo durante 10 minutos 🧘‍♂️🌿", 2),
-  MiniMision("Haz una caminata tranquila de 15 minutos 🚶‍♂️🌅", 2),
-  MiniMision("Desconéctate de pantallas por 1 hora 📵🕒", 2),
-  MiniMision("Agradece 3 cosas de tu día en voz alta 🙏😊", 1),
-  MiniMision("Prepara una comida con verduras frescas 🥦🍅", 2),
-  MiniMision("Baila tu canción favorita durante 5 minutos 💃🕺", 2),
-  MiniMision("Lee algo inspirador o relajante por 10 minutos 📖✨", 2),
-  MiniMision("Estírate a conciencia por 8 minutos 🧘‍♀️🤸", 2),
-  MiniMision(
-      "Haz una rutina corta de autocuidado (crema, lavado, etc.) 🛁🧴", 1),
-  MiniMision("Escribe una nota positiva para ti mismo ✍️💌", 1),
-  MiniMision("Toma agua antes de cada comida del día 💧🍽️", 2),
-  MiniMision("Dedica 5 minutos a respirar con ojos cerrados 🧘‍♂️👁️‍🗨️", 1),
-  MiniMision("Haz un snack saludable (fruta, nuez) 🥜🍌", 1),
-  MiniMision("Acuéstate temprano y sin celular 🛏️📵", 2),
-  MiniMision("Escucha música relajante 10 minutos 🎵😌", 1),
-  MiniMision("Realiza una rutina corta de yoga o estiramiento 🧘‍♂️🌄", 2),
-  MiniMision("Haz una caminata al aire libre, aunque sea corta 🌳👣", 2),
-  MiniMision("Toma un baño relajante (o regadera larga) 🛀💦", 1),
-  MiniMision("Haz 10 minutos de journaling libre 📝🕰️", 2),
-  MiniMision("Tómate 5 minutos solo/a para descansar la mente 🧠💤", 1),
-  MiniMision("Dile algo bonito a alguien (o a ti mismo) 💬💖", 1),
-  MiniMision("Prepara y toma un té/caliente sin prisas 🍵🌙", 1),
-  MiniMision(
-      "Haz un escaneo mental de tu cuerpo para detectar tensiones 🧘‍♂️🔎", 2),
-  MiniMision("Escucha tus latidos por un minuto y relájate ❤️👂", 1),
-  MiniMision("Dedica 5 minutos a agradecer tu salud y tu cuerpo 🙏💪", 1),
-  MiniMision("Prepara tu espacio para descansar mejor esta noche 🛏️🌜", 1),
-  MiniMision("Haz una pausa y sal a ver el cielo o la naturaleza ☁️🌳", 2),
-];

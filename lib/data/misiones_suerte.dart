@@ -1,40 +1,41 @@
-class MiniMision {
-  final String descripcion;
-  final int xp;
+List<String> generarMisionesSuerte(int nivel) {
+  int repsBase = 5 + (nivel * 2);
+  int minBase = 5 + (nivel ~/ 2);
 
-  MiniMision(this.descripcion, this.xp);
+  List<String> plantillas = [
+    'Lanza una moneda ${repsBase} veces hoy y anota tus resultados 🍀',
+    'Haz ${repsBase ~/ 2} actividades espontáneas sin pensarlo demasiado 🤸‍♂️',
+    'Juega ${minBase + 1} partidas rápidas a un juego de azar 🎲',
+    'Haz una lista de ${minBase} decisiones al azar y cumple al menos una 🎯',
+    'Tira un dado ${repsBase + 2} veces y deja que decida micro-acciones del día 🎲',
+    'Pide a alguien elegir un número del 1 al ${repsBase + 5} y haz algo con ese número 🔢',
+    'Busca ${minBase + 3} curiosidades random en internet 🌐',
+    'Haz una acción amable al azar a ${minBase} personas diferentes 🤝',
+    'Cambia tu playlist ${minBase + 1} veces al día por una elegida al azar 🎶',
+    'Deja que una app de azar elija una actividad por ti ${repsBase ~/ 2} veces 📱',
+    'Escribe ${minBase + 1} palabras al azar y úsalas en una historia corta 📝',
+    'Abre un libro ${repsBase} veces al azar y anota la primera palabra que veas 📖',
+    'Haz un dibujo con los ojos cerrados durante ${minBase * 2} segundos 🎨',
+    'Deja que el clima decida una de tus actividades hoy (${minBase} opciones) ☀️🌧️',
+    'Usa la mano no dominante para ${minBase} acciones del día ✋',
+    'Haz una encuesta rápida a ${repsBase ~/ 2} personas sobre un tema random 🗣️',
+    'Lanza una moneda para decidir entre ${minBase} opciones de comida 🍽️',
+    'Toma una ruta diferente en tu camino al menos ${repsBase ~/ 2} veces esta semana 🚗',
+    'Haz ${minBase + 2} cosas a una hora diferente a la habitual ⏰',
+    'Escribe ${repsBase} deseos o metas y elige uno al azar para trabajar hoy 🎯',
+    'Cambia el fondo de pantalla de tu celular ${minBase} veces 🖼️',
+    'Juega piedra, papel o tijera ${repsBase} veces (aunque sea tú solo) ✋🤚✌️',
+    'Haz zapping en la TV/radio y escucha el primer canal durante ${minBase * 2} minutos 📻',
+    'Acepta la primera invitación espontánea que recibas hoy (o mándala tú) 💌',
+    'Haz ${minBase + 2} actividades que normalmente evitarías por rutina 🔄',
+    'Elige un color al azar y usa/prueba ${minBase + 1} objetos de ese color 🎨',
+    'Deja una decisión importante a un dado (entre ${minBase} opciones) 🎲',
+    'Haz un reto viral random por al menos ${minBase + 3} minutos 🕹️',
+    'Busca una noticia completamente aleatoria y cuéntasela a alguien 📰',
+    'Llama o escribe a alguien que no contactabas hace más de ${minBase} meses 📞',
+  ];
+
+  plantillas.shuffle();
+
+  return plantillas.take(30).toList();
 }
-
-final List<MiniMision> todasLasMisionesSuerte = [
-  MiniMision('Juega una moneda al aire y acepta el resultado. 🪙🍀', 2),
-  MiniMision('Haz una pequeña apuesta contigo mismo y cúmplela. 🎲🔥', 2),
-  MiniMision('Hazle un cumplido a un desconocido. 🎯😊', 2),
-  MiniMision('Di “sí” a la siguiente invitación inesperada. 🌀🎉', 3),
-  MiniMision('Cambia tu camino habitual y observa qué sucede. 🚶‍♂️🌠', 2),
-  MiniMision('Elige un número al azar y haz una acción en ese orden. #️⃣✨', 2),
-  MiniMision('Haz una compra espontánea menor. 🛒😆', 2),
-  MiniMision('Escoge una playlist aleatoria y déjala sonar. 🎶🔀', 1),
-  MiniMision('Pregunta algo al azar a un amigo. 🎲🤔', 2),
-  MiniMision('Llama a alguien que no has visto en meses. 📞🔮', 3),
-  MiniMision('Confía en tu intuición para tomar una decisión hoy. 🧭🍀', 2),
-  MiniMision('Déjate llevar por una corazonada. ❤️‍🔥✨', 2),
-  MiniMision('Come algo nuevo o al azar hoy. 🍽️🎲', 1),
-  MiniMision('Deja que una app de azar decida tu snack. 📱🍩', 2),
-  MiniMision('Busca un “mensaje del día” y actúa en consecuencia. 📝🌠', 2),
-  MiniMision('Haz una donación pequeña sin pensarlo demasiado. 💸🙏', 2),
-  MiniMision('Sigue el consejo del primer meme que veas hoy. 🤡✨', 1),
-  MiniMision('Hazle caso a tu “presentimiento” más fuerte del día. 🧠💡', 2),
-  MiniMision('Acepta un reto espontáneo de alguien más. 🎯🔥', 2),
-  MiniMision('Visita un lugar nuevo, aunque esté cerca. 🗺️🚶‍♂️', 2),
-  MiniMision('Acepta o crea un “reto de suerte” en redes. 📱🍀', 2),
-  MiniMision(
-      'Haz una pausa en un momento inesperado y observa el entorno. ⏸️👀', 1),
-  MiniMision('Responde una encuesta aleatoria. 📋🎲', 1),
-  MiniMision('Haz una buena acción sin planearla. 💥👐', 2),
-  MiniMision('Prueba algo de otro país o cultura. 🌎🧆', 2),
-  MiniMision('Haz una llamada de “buena suerte” a alguien. 📞🍀', 2),
-  MiniMision('Invita a alguien a hacer algo al azar. 🗣️🎲', 2),
-  MiniMision('Prueba tu suerte con un sorteo digital. 🎟️💻', 2),
-  MiniMision('Haz una lista de deseos y escoge uno al azar. 📝✨', 2),
-  MiniMision('Haz algo diferente a tu rutina normal. 🌅🎉', 2),
-];

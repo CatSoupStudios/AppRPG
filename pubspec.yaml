@@ -1,7 +1,7 @@
 name: solo_leveling
 description: A new Flutter project.
 publish_to: 'none'
-version: 1.1.1+16
+version: 1.1.1+17
 
 environment:
   sdk: ">=2.18.0 <3.0.0"
@@ -42,6 +42,7 @@ flutter:
     - assets/sounds/sword-tap.mp3
     - assets/animations/palimita.json
     - assets/animations/confeti.json
+    - assets/moneda.png
 
   fonts:
     - family: OptimusPrinceps

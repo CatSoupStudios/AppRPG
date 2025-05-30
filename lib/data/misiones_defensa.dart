@@ -1,39 +1,41 @@
-class MiniMision {
-  final String descripcion;
-  final int xp;
+List<String> generarMisionesDefensa(int nivel) {
+  int repsBase = 5 + (nivel * 2);
+  int minBase = 5 + (nivel ~/ 2);
 
-  MiniMision(this.descripcion, this.xp);
+  List<String> plantillas = [
+    'Haz ${repsBase + 2} respiraciones profundas cuando sientas estrés 🛡️',
+    'Aguanta una “plancha” (plank) por ${minBase * 2} segundos 🧘‍♂️',
+    'Escribe ${repsBase} pensamientos negativos y transfórmalos en positivos ✍️',
+    'Tómate ${minBase + 1} minutos para meditar o solo respirar en calma 😌',
+    'Visualiza un escudo protector durante ${minBase + 2} minutos 🛡️',
+    'Identifica y pon límite a ${minBase} cosas/personas tóxicas hoy 🚫',
+    'Escribe ${repsBase + 1} veces “soy más fuerte de lo que pienso” 💪',
+    'Haz ${repsBase} sentadillas mientras piensas en lo que te da paz 🦵',
+    'Dedica ${minBase + 3} minutos a proteger tu espacio personal (limpieza, organización) 🧹',
+    'Evita que te interrumpan durante ${minBase * 2} minutos en una actividad importante 🚷',
+    'Realiza ${repsBase ~/ 2} minutos de estiramientos defensivos 🧘‍♂️',
+    'Expresa tus límites con claridad a ${minBase} personas 🗣️',
+    'Haz una lista de ${minBase + 1} cosas que te hacen sentir seguro/a 🔐',
+    'Ponte en una posición de “postura de poder” por ${minBase + 2} minutos 🦸',
+    'Repite un mantra de defensa personal ${repsBase} veces (elige uno propio) 🕉️',
+    'Ignora deliberadamente ${minBase} comentarios negativos hoy 🙉',
+    'Dedica ${minBase + 1} minutos a tu hobby favorito para recargar energía 🖌️',
+    'Apunta ${repsBase ~/ 2} pequeñas victorias que hayas tenido en la semana 🏆',
+    'Refuerza tus contraseñas o tu seguridad digital en ${minBase} cuentas 🔒',
+    'Haz ${repsBase} repeticiones de tu ejercicio favorito de defensa (boxeo, yoga, etc.) 🥊',
+    'Regálate ${minBase + 3} minutos de silencio sin celular 📵',
+    'Escribe una carta de auto-defensa (aunque sea solo para ti) ✉️',
+    'Imagina cómo bloquearías un ataque con superpoderes durante ${minBase * 2} segundos 🦸‍♂️',
+    'Haz un “checklist” de defensa emocional de ${minBase + 1} puntos 📋',
+    'Protege tus emociones ignorando ${minBase} chismes hoy 🤐',
+    'Haz una actividad donde debas decir “no” a algo tentador ${repsBase ~/ 2} veces ✋',
+    'Busca ${minBase} datos sobre cómo protegerte física/emocionalmente hoy 📚',
+    'Juega un videojuego de defensa (tower defense, etc.) por ${minBase + 3} minutos 🎮',
+    'Pon un objeto simbólico de protección en tu entorno por ${minBase + 1} horas 🧿',
+    'Evita responder mensajes durante ${minBase + 2} minutos cuando estés ocupado/a 📴',
+  ];
+
+  plantillas.shuffle();
+
+  return plantillas.take(30).toList();
 }
-
-final List<MiniMision> todasLasMisionesDefensa = [
-  MiniMision("Meditar 10 minutos sobre tus emociones 🧘‍♂️🛡️", 2),
-  MiniMision("Ignorar una provocación sin reaccionar ✋😌", 2),
-  MiniMision("Practicar respiración profunda 5 veces 🌬️🫁", 1),
-  MiniMision("Establecer un límite sano hoy 🚧🗣️", 3),
-  MiniMision("Escribir 3 cosas que te hacen sentir seguro ✍️🛡️", 2),
-  MiniMision("Visualizar una burbuja protectora a tu alrededor 🫧🧠", 1),
-  MiniMision("Hablar con alguien sobre tus límites personales 👥🛑", 2),
-  MiniMision("Tomar un descanso consciente ante el estrés ☕😌", 1),
-  MiniMision("Leer sobre asertividad en relaciones humanas 📚🤝", 2),
-  MiniMision("Preparar un plan para una situación difícil 📋⚡", 2),
-  MiniMision("Decir ‘no’ a algo innecesario hoy 🙅‍♂️🛡️", 2),
-  MiniMision("Identificar una emoción negativa y dejarla ir 🌊💨", 2),
-  MiniMision("Visualizar cómo resolverías un conflicto futuro 🧠🤔", 2),
-  MiniMision("Limitar el uso del celular por 1 hora 📵⏳", 1),
-  MiniMision("Revisar tu postura corporal al caminar 🏃‍♂️🛡️", 1),
-  MiniMision("Anotar una situación donde actuaste con fortaleza 💪📝", 2),
-  MiniMision("Escribir cómo te proteges de pensamientos negativos ✍️🛡️", 2),
-  MiniMision("Practicar una frase asertiva hoy 🗣️✔️", 2),
-  MiniMision("Analizar un error pasado y aprender de él 🔍📖", 2),
-  MiniMision("Agradecerte por proteger tu paz mental hoy 🙏🧠", 2),
-  MiniMision("Ignorar chismes o críticas sin fundamento 🤫🛡️", 1),
-  MiniMision("Escuchar música que te relaje 🎶😌", 1),
-  MiniMision("Crear una lista de cosas que te dan seguridad 📝🛡️", 2),
-  MiniMision("Desarrollar una respuesta calmada ante la presión 🤔💬", 2),
-  MiniMision("Reflexionar sobre alguien que te inspira fortaleza 🧠✨", 2),
-  MiniMision("Dedicarte 10 minutos de autocuidado hoy 🛀🕒", 2),
-  MiniMision("Contestar un mensaje difícil con amabilidad 📱💬", 1),
-  MiniMision("Evitar una discusión innecesaria 🛑🗯️", 2),
-  MiniMision("Observar tus pensamientos y dejarlos pasar 🧘‍♀️💭", 1),
-  MiniMision("Escribir tu mantra de defensa personal ✍️🛡️", 2),
-];
