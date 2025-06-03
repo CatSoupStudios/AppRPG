@@ -12,6 +12,7 @@ import '../utils/progreso.dart';
 import '../widgets/drop_banner.dart';
 import '../utils/monedas.dart';
 import '../utils/pociones.dart';
+import '../utils/stamina.dart';
 
 class PantallaDefensa extends StatefulWidget {
   @override
@@ -39,10 +40,14 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
   String dropTexto = "";
   bool showDropBanner = false;
 
+  int staminaActual = staminaMax;
+  bool cargandoStamina = true;
+
   @override
   void initState() {
     super.initState();
     cargarDatos();
+    cargarStamina();
     _ticker = Ticker((_) {
       if (!mounted) return;
       setState(() {
@@ -81,12 +86,15 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
 
   Future<void> cargarDatos() async {
     final prefs = await SharedPreferences.getInstance();
+
     defensaXP = prefs.getInt('defensa_xp') ?? 0;
     defensaNivel = prefs.getInt('defensa_nivel') ?? 1;
+
     ultimaMisionPrincipal =
         _getDateTime(prefs.getString('ultima_mision_defensa'));
     ultimaGeneracion =
         _getDateTime(prefs.getString('ultima_generacion_defensa'));
+
     nombreInvocador = prefs.getString('nombre_invocador') ?? "Invocador";
 
     final mapaXpRaw = prefs.getStringList('xp_misiones_defensa') ?? [];
@@ -103,20 +111,24 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
         .toList();
 
     final ahora = DateTime.now();
+
     if (!_esHoy(ultimaGeneracion)) {
       final nuevas = <int>{};
       final todas = generarMisionesDefensa(defensaNivel);
       misionesGeneradas = todas;
 
       final random = Random();
+
       while (nuevas.length < 5) {
         nuevas.add(random.nextInt(todas.length));
       }
 
       indicesMisionesDia = nuevas.toList();
+
       xpMiniMisiones = {
         for (var i in indicesMisionesDia) i: random.nextInt(9) + 2,
       };
+
       completadasHoy = {};
 
       await prefs.setStringList('misiones_defensa_dia',
@@ -135,55 +147,102 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
     });
   }
 
-  Future<void> completarMisionPrincipal() async {
+  Future<void> cargarStamina() async {
+    int s = await getStamina();
     setState(() {
-      showCheckAnimation = true;
-      indexAnimado = null;
+      staminaActual = s;
+      cargandoStamina = false;
     });
+  }
 
-    final ahora = DateTime.now();
-    if (_esHoy(ultimaMisionPrincipal)) return;
-    final prefs = await SharedPreferences.getInstance();
-
-    final xpGanada = Random().nextInt(11) + 5;
-    defensaXP += xpGanada;
-    ultimaMisionPrincipal = ahora;
-
-    while (defensaXP >= xpNecesaria(defensaNivel)) {
-      defensaXP -= xpNecesaria(defensaNivel);
-      defensaNivel++;
-      await mostrarDialogoSubirNivel(
-        context,
-        nombreInvocador: nombreInvocador ?? 'Invocador',
-        nivel: defensaNivel,
+  Future<bool> intentarGastarStamina(int costo) async {
+    bool exito = await gastarStamina(costo);
+    if (!exito) {
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title:
+              const Text("Sin stamina", style: TextStyle(color: Colors.amber)),
+          content: const Text(
+            "No tienes suficiente stamina para completar esta misión. Usa una poción desde tu mochila o espera a mañana.",
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Ok", style: TextStyle(color: Colors.amber)),
+              onPressed: () => Navigator.pop(context),
+            )
+          ],
+        ),
       );
+      return false;
     }
+    await cargarStamina();
+    return true;
+  }
 
-    await agregarXpDelDia(xpGanada);
-    await prefs.setInt('defensa_xp', defensaXP);
-    await prefs.setInt('defensa_nivel', defensaNivel);
-    await prefs.setString('ultima_mision_defensa', ahora.toIso8601String());
-    await sumarMisionCompletada();
+  Future<void> completarMisionPrincipal() async {
+    if (!_esHoy(ultimaMisionPrincipal)) {
+      bool puede = await intentarGastarStamina(20);
+      if (!puede) return;
 
-    int oroDrop = Random().nextInt(6) + 10; // 10-15 oro
-    bool dropPocion = Random().nextDouble() < 0.6;
+      setState(() {
+        showCheckAnimation = true;
+        indexAnimado = null;
+      });
 
-    await ganarMonedas(oroDrop);
-    if (dropPocion) await ganarPocion();
+      final ahora = DateTime.now();
+      final prefs = await SharedPreferences.getInstance();
 
-    String texto = "+$oroDrop 🪙";
-    if (dropPocion) texto += "    +1 🧪";
+      final xpGanada = Random().nextInt(11) + 5;
+      defensaXP += xpGanada;
+      ultimaMisionPrincipal = ahora;
 
-    await Future.delayed(const Duration(milliseconds: 0));
-    mostrarDropBanner(texto);
+      while (defensaXP >= xpNecesaria(defensaNivel)) {
+        defensaXP -= xpNecesaria(defensaNivel);
+        defensaNivel++;
+        await mostrarDialogoSubirNivel(
+          context,
+          nombreInvocador: nombreInvocador ?? 'Invocador',
+          nivel: defensaNivel,
+        );
+      }
 
-    setState(() {});
+      int oroDrop = Random().nextInt(6) + 10; // 10-15 oro
+      bool dropPocion = true; // 100% probabilidad para prueba
+
+      await ganarMonedas(oroDrop);
+
+      if (dropPocion) {
+        int valorPocion = Random().nextBool() ? 10 : 20;
+        await ganarPocion(valorPocion);
+      }
+
+      await agregarXpDelDia(xpGanada);
+      await prefs.setInt('defensa_xp', defensaXP);
+      await prefs.setInt('defensa_nivel', defensaNivel);
+      await prefs.setString('ultima_mision_defensa', ahora.toIso8601String());
+      await sumarMisionCompletada();
+
+      String texto = "+$oroDrop 🪙";
+      if (dropPocion) texto += "    +1 🧪";
+
+      await Future.delayed(const Duration(milliseconds: 0));
+      mostrarDropBanner(texto);
+
+      setState(() {});
+    }
   }
 
   Future<void> completarMiniMision(int index) async {
-    final prefs = await SharedPreferences.getInstance();
     final id = indicesMisionesDia[index];
     if (completadasHoy[id] == true) return;
+
+    bool puede = await intentarGastarStamina(10);
+    if (!puede) return;
+
+    final prefs = await SharedPreferences.getInstance();
 
     setState(() {
       showCheckAnimation = true;
@@ -204,6 +263,16 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
       );
     }
 
+    int oroDrop = Random().nextInt(3) + 1; // 1-3 oro
+    bool dropPocion = Random().nextDouble() < 0.1;
+
+    await ganarMonedas(oroDrop);
+
+    if (dropPocion) {
+      int valorPocion = Random().nextBool() ? 10 : 20;
+      await ganarPocion(valorPocion);
+    }
+
     await agregarXpDelDia(xp);
     await prefs.setInt('defensa_xp', defensaXP);
     await prefs.setInt('defensa_nivel', defensaNivel);
@@ -215,12 +284,6 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
             .toList());
 
     await sumarMisionCompletada();
-
-    int oroDrop = Random().nextInt(3) + 1; // 1-3 oro
-    bool dropPocion = Random().nextDouble() < 0.08;
-
-    await ganarMonedas(oroDrop);
-    if (dropPocion) await ganarPocion();
 
     String texto = "+$oroDrop 🪙";
     if (dropPocion) texto += "    +1 🧪";
@@ -242,23 +305,92 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
     });
   }
 
+  String _formatearDuracion(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    final s = d.inSeconds % 60;
+    return '${h}h ${m}m ${s}s';
+  }
+
   @override
   Widget build(BuildContext context) {
     final xpMax = xpNecesaria(defensaNivel);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final puedeHacerPrincipal = !cargando && !_esHoy(ultimaMisionPrincipal);
+    final puedeMisionPrincipal = puedeHacerPrincipal && staminaActual >= 20;
 
-    String _formatearDuracion(Duration d) {
-      final h = d.inHours;
-      final m = d.inMinutes % 60;
-      final s = d.inSeconds % 60;
-      return '${h}h ${m}m ${s}s';
+    Widget barraStamina() {
+      final percent = staminaActual / staminaMax;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 20.0, top: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Stamina",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: isDarkMode ? Colors.amber[200] : Colors.amber[800],
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                children: [
+                  Container(
+                    height: 22,
+                    width: double.infinity,
+                    color: isDarkMode
+                        ? Colors.white10
+                        : Colors.amber.withOpacity(0.08),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeOut,
+                    height: 22,
+                    width: (MediaQuery.of(context).size.width * percent - 40)
+                        .clamp(0.0, double.infinity),
+                    decoration: BoxDecoration(
+                      color: Colors.amber[700],
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Center(
+                      child: Text(
+                        "$staminaActual / $staminaMax",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          shadows: [
+                            Shadow(
+                              color: Colors.white.withOpacity(0.25),
+                              blurRadius: 2,
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
-    // NUEVO: Evita mostrar el botón sin texto si está cargando
-    final misionPrincipalDescripcion = cargando
-        ? 'Cargando misión principal...'
-        : 'Dedica al menos 5 minutos a proteger tu mente y tu cuerpo hoy.';
+    if (cargandoStamina) {
+      return Scaffold(
+        backgroundColor:
+            isDarkMode ? AppColors.darkBackground : AppColors.lightBackground,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor:
@@ -280,6 +412,7 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                barraStamina(),
                 Text('Nivel: $defensaNivel',
                     style: TextStyle(
                         fontSize: 24,
@@ -308,22 +441,23 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                             ? AppColors.darkAccent
                             : AppColors.lightText)),
                 const SizedBox(height: 10),
-                Text(misionPrincipalDescripcion,
+                Text('Dedica 30 minutos a fortalecer tu mente y cuerpo hoy.',
                     style: TextStyle(
                         color: isDarkMode
                             ? AppColors.darkSecondaryText
                             : AppColors.lightSecondaryText)),
                 const SizedBox(height: 10),
                 ElevatedButton.icon(
-                  onPressed: puedeHacerPrincipal && !cargando
-                      ? completarMisionPrincipal
-                      : null,
-                  icon: const Icon(Icons.security),
-                  label: Text(puedeHacerPrincipal && !cargando
-                      ? 'Completar misión (+XP +oro)'
-                      : cargando
-                          ? 'Cargando...'
-                          : 'Ya completada hoy'),
+                  onPressed:
+                      puedeMisionPrincipal ? completarMisionPrincipal : null,
+                  icon: const Icon(Icons.shield_moon),
+                  label: Text(
+                    puedeHacerPrincipal
+                        ? staminaActual >= 20
+                            ? 'Completar misión (+XP +oro)'
+                            : 'Sin stamina'
+                        : 'Ya completada hoy',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.black,
@@ -332,7 +466,7 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                     textStyle: const TextStyle(fontSize: 16),
                   ),
                 ),
-                if (!puedeHacerPrincipal && !cargando)
+                if (!puedeHacerPrincipal)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
@@ -353,11 +487,10 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                 const SizedBox(height: 10),
                 ...List.generate(indicesMisionesDia.length, (i) {
                   final idx = indicesMisionesDia[i];
-                  final mision = misionesGeneradas.isNotEmpty
-                      ? misionesGeneradas[idx]
-                      : 'Cargando...';
+                  final mision = misionesGeneradas[idx];
                   final hecha = completadasHoy[idx] == true;
                   final xp = xpMiniMisiones[idx] ?? 2;
+                  final puedeMini = !hecha && staminaActual >= 10;
 
                   return Card(
                     color: isDarkMode
@@ -389,6 +522,14 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                                     fontSize: 11,
                                     fontStyle: FontStyle.italic,
                                     color: Colors.grey)),
+                          if (!hecha && staminaActual < 10)
+                            const Text(
+                              'Sin stamina',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.amber),
+                            ),
                         ],
                       ),
                       trailing: hecha
@@ -396,7 +537,9 @@ class _PantallaDefensaState extends State<PantallaDefensa> {
                           : IconButton(
                               icon: const Icon(Icons.check_circle,
                                   color: Colors.amber),
-                              onPressed: () => completarMiniMision(i),
+                              onPressed: puedeMini
+                                  ? () => completarMiniMision(i)
+                                  : null,
                             ),
                     ),
                   );

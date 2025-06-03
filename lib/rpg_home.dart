@@ -24,6 +24,7 @@ import 'screens/pantalla_perfil.dart';
 import '../effects/fluid_lines_background.dart';
 import 'screens/pantalla_mochila.dart';
 import 'screens/pantalla_tienda.dart';
+import 'utils/stamina.dart';
 
 class RPGHome extends StatefulWidget {
   const RPGHome({super.key});
@@ -41,7 +42,8 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   int rachaActual = 0;
   bool fondoAnimado = true;
   bool cargandoPrefs = true;
-  String? bannerFondoUrl; // <- Para el fondo personalizado
+  String? bannerFondoUrl;
+  int staminaActual = staminaMax; // <-- NUEVO: Variable de stamina
 
   final Map<String, String> statEmojis = {
     'fuerza': '💪',
@@ -57,10 +59,20 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    cargarStamina(); // <-- NUEVO: Carga stamina al iniciar
+
     _cargarFondoAnimado().then((_) async {
       await actualizarXPGeneralSiEsNuevoDia();
       await cargarDatos();
-      await cargarFondoPersonalizado(); // <--- carga el fondo personalizado al iniciar
+      await cargarFondoPersonalizado();
+    });
+  }
+
+  // --- NUEVO: Método para cargar stamina desde SharedPreferences ---
+  Future<void> cargarStamina() async {
+    int s = await getStamina();
+    setState(() {
+      staminaActual = s;
     });
   }
 
@@ -105,7 +117,8 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       cargarDatos();
       _cargarFondoAnimado();
-      cargarFondoPersonalizado(); // <--- recarga el fondo al volver
+      cargarFondoPersonalizado();
+      cargarStamina(); // <-- NUEVO: Recarga stamina al volver del background
     }
   }
 
@@ -152,6 +165,8 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
     setState(() {
       rachaActual = nuevaRacha;
     });
+
+    await cargarStamina(); // <-- NUEVO: Refresca stamina también al cargar datos
   }
 
   Future<void> actualizarRacha() async {
@@ -190,12 +205,14 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           .then((_) {
         cargarDatos();
         cargarFondoPersonalizado();
+        cargarStamina(); // <-- NUEVO: Refresca stamina al volver de stat
       });
     } else if (lowerStat == 'inteligencia') {
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => PantallaInteligencia())).then((_) {
         cargarDatos();
         cargarFondoPersonalizado();
+        cargarStamina();
       });
     } else if (lowerStat == 'defensa') {
       Navigator.push(
@@ -203,6 +220,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           .then((_) {
         cargarDatos();
         cargarFondoPersonalizado();
+        cargarStamina();
       });
     } else if (lowerStat == 'agilidad') {
       Navigator.push(
@@ -210,6 +228,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           .then((_) {
         cargarDatos();
         cargarFondoPersonalizado();
+        cargarStamina();
       });
     } else if (lowerStat == 'vitalidad') {
       Navigator.push(
@@ -217,6 +236,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           .then((_) {
         cargarDatos();
         cargarFondoPersonalizado();
+        cargarStamina();
       });
     } else if (lowerStat == 'suerte') {
       Navigator.push(
@@ -224,6 +244,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           .then((_) {
         cargarDatos();
         cargarFondoPersonalizado();
+        cargarStamina();
       });
     } else if (lowerStat == 'carisma') {
       Navigator.push(
@@ -231,6 +252,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
           .then((_) {
         cargarDatos();
         cargarFondoPersonalizado();
+        cargarStamina();
       });
     }
   }
@@ -238,28 +260,30 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
   void _abrirPantallaMochila() {
     Navigator.of(context)
         .push(PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              PantallaMochila(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(1.0, 0.0);
-            const end = Offset.zero;
-            const curve = Curves.easeInOut;
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          PantallaMochila(),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        const begin = Offset(1.0, 0.0);
+        const end = Offset.zero;
+        const curve = Curves.easeInOut;
 
-            final tween =
-                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-            final opacityTween = Tween<double>(begin: 0.0, end: 1.0);
+        final tween =
+            Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        final opacityTween = Tween<double>(begin: 0.0, end: 1.0);
 
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: FadeTransition(
-                opacity: animation.drive(opacityTween),
-                child: child,
-              ),
-            );
-          },
-        ))
-        .then((_) =>
-            cargarFondoPersonalizado()); // <-- Recarga el fondo al volver de la mochila
+        return SlideTransition(
+          position: animation.drive(tween),
+          child: FadeTransition(
+            opacity: animation.drive(opacityTween),
+            child: child,
+          ),
+        );
+      },
+    ))
+        .then((_) {
+      cargarFondoPersonalizado();
+      cargarStamina(); // <-- NUEVO: Refresca stamina al volver de mochila
+    });
   }
 
   @override
@@ -337,6 +361,86 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
       ),
     ];
 
+    // --- BARRA DE STAMINA --- //
+    Widget barraStamina() {
+      final percent = staminaActual / staminaMax;
+      Color barraColor;
+      if (percent > 0.7) {
+        barraColor = Colors.greenAccent.shade700;
+      } else if (percent > 0.3) {
+        barraColor = Colors.amber.shade700;
+      } else {
+        barraColor = Colors.redAccent.shade700;
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(top: 18, bottom: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Stamina",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: isDarkMode
+                    ? Colors.cyanAccent.shade100
+                    : Colors.deepPurple[800],
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                children: [
+                  Container(
+                    height: 22,
+                    width: double.infinity,
+                    color: isDarkMode
+                        ? Colors.white10
+                        : Colors.deepPurple.withOpacity(0.08),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 550),
+                    curve: Curves.easeOut,
+                    height: 22,
+                    width: (MediaQuery.of(context).size.width * percent - 40)
+                        .clamp(0.0, double.infinity),
+                    decoration: BoxDecoration(
+                      color: barraColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Center(
+                      child: Text(
+                        "$staminaActual / $staminaMax",
+                        style: TextStyle(
+                          color: percent > 0.3
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.85),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 2,
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    // --- FIN BARRA DE STAMINA --- //
+
     return Scaffold(
       backgroundColor:
           isDarkMode ? AppColors.darkBackground : AppColors.lightBackground,
@@ -399,8 +503,7 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                               fontWeight: FontWeight.bold,
                               color: isDarkMode
                                   ? Colors.cyanAccent.shade100
-                                  : Colors.deepPurple[
-                                      800], // más oscuro en modo claro
+                                  : Colors.deepPurple[800],
                               shadows: [
                                 Shadow(
                                   blurRadius: 3,
@@ -439,7 +542,11 @@ class _RPGHomeState extends State<RPGHome> with WidgetsBindingObserver {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 34),
+
+                  // BARRA DE STAMINA AQUÍ MISMO 👇
+                  barraStamina(),
+
+                  const SizedBox(height: 14),
                   Text(
                     "⚡STATS DEL INVOCADOR",
                     style: TextStyle(

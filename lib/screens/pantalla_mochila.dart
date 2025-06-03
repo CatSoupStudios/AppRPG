@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/colors.dart';
 import '../providers/theme_provider.dart';
 import '../utils/pociones.dart';
+import '../utils/stamina.dart';
 
 class PantallaMochila extends StatefulWidget {
   const PantallaMochila({super.key});
@@ -16,7 +17,7 @@ class PantallaMochila extends StatefulWidget {
 class _PantallaMochilaState extends State<PantallaMochila>
     with SingleTickerProviderStateMixin {
   int monedas = 0;
-  int pociones = 0;
+  Map<int, int> pociones = {};
   List<Map<String, dynamic>> bannersComprados = [];
   bool cargando = true;
   late AnimationController _controller;
@@ -45,6 +46,9 @@ class _PantallaMochilaState extends State<PantallaMochila>
     final bannersStrings = prefs.getStringList('banners_comprados') ?? [];
     final fondo = prefs.getString('banner_fondo');
 
+    // 🔥🔥 FIX para evitar errores de widget desmontado 🔥🔥
+    if (!mounted) return;
+
     setState(() {
       monedas = totalMonedas;
       pociones = totalPociones;
@@ -68,6 +72,15 @@ class _PantallaMochilaState extends State<PantallaMochila>
     setState(() {
       mostrarGaleria = false;
     });
+  }
+
+  void abrirPantallaPociones() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PantallaPociones(pociones: pociones)),
+    );
+    // Al volver, recarga inventario
+    cargarInventario();
   }
 
   @override
@@ -110,6 +123,8 @@ class _PantallaMochilaState extends State<PantallaMochila>
   }
 
   Widget _buildResumenInventario(BuildContext context) {
+    int totalPociones = (pociones[10] ?? 0) + (pociones[20] ?? 0);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.only(top: 32, left: 0, right: 0, bottom: 0),
       child: Column(
@@ -163,30 +178,39 @@ class _PantallaMochilaState extends State<PantallaMochila>
                 ),
                 const SizedBox(height: 20),
                 // POCIONES
-                Row(
-                  children: [
-                    const Icon(Icons.science,
-                        color: Colors.lightBlueAccent, size: 34),
-                    const SizedBox(width: 18),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Pociones",
+                GestureDetector(
+                  onTap: abrirPantallaPociones,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.science,
+                          color: Colors.lightBlueAccent, size: 34),
+                      const SizedBox(width: 18),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("Pociones",
+                              style: TextStyle(
+                                  color: Colors.lightBlueAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 19)),
+                          Text(
+                            "$totalPociones pociones",
                             style: TextStyle(
-                                color: Colors.lightBlueAccent,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 19)),
-                        Text(
-                          "$pociones pociones",
-                          style: TextStyle(
-                            color: Colors.lightBlue[200],
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400,
+                              color: Colors.lightBlue[200],
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const Text(
+                            "Toca para ver tus pociones",
+                            style: TextStyle(color: Colors.amber, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      const Icon(Icons.chevron_right, color: Colors.amber)
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
                 // BANNERS
@@ -391,12 +415,16 @@ class _PantallaMochilaState extends State<PantallaMochila>
                                                     bannerFondoId =
                                                         banner['id'].toString();
                                                   });
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                        content: Text(
-                                                            '¡Banner puesto de fondo!')),
-                                                  );
+                                                  Future.delayed(Duration.zero,
+                                                      () {
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                          content: Text(
+                                                              '¡Banner puesto de fondo!')),
+                                                    );
+                                                  });
                                                 },
                                         ),
                                       ),
@@ -423,12 +451,14 @@ class _PantallaMochilaState extends State<PantallaMochila>
                                               setState(() {
                                                 bannerFondoId = null;
                                               });
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content: Text(
-                                                        'Banner removido')),
-                                              );
+                                              Future.delayed(Duration.zero, () {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                      content: Text(
+                                                          'Banner removido')),
+                                                );
+                                              });
                                             },
                                           ),
                                         ),
@@ -474,6 +504,177 @@ class _PantallaMochilaState extends State<PantallaMochila>
                     }),
           )
         ],
+      ),
+    );
+  }
+}
+
+// ====================
+// NUEVA PANTALLA: Pociones
+// ====================
+class PantallaPociones extends StatefulWidget {
+  final Map<int, int> pociones;
+
+  const PantallaPociones({Key? key, required this.pociones}) : super(key: key);
+
+  @override
+  State<PantallaPociones> createState() => _PantallaPocionesState();
+}
+
+class _PantallaPocionesState extends State<PantallaPociones> {
+  late Map<int, int> pociones;
+
+  @override
+  void initState() {
+    super.initState();
+    pociones = Map.from(widget.pociones);
+  }
+
+  Future<void> _confirmarUsoPocion(BuildContext context, int valor) async {
+    if ((pociones[valor] ?? 0) <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No tienes esa poción disponible')),
+      );
+      return;
+    }
+
+    final usar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Usar poción de $valor stamina'),
+        content: Text('¿Quieres usar la poción y recuperar +$valor stamina?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sí'),
+          ),
+        ],
+      ),
+    );
+
+    if (usar == true) {
+      bool exito = await usarPocion(valor);
+      if (exito) {
+        await sumarStamina(valor);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('¡Poción de $valor usada! +$valor stamina')),
+        );
+        setState(() {
+          pociones[valor] = (pociones[valor] ?? 1) - 1;
+          if (pociones[valor]! <= 0) pociones.remove(valor);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No tienes esa poción disponible')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
+    int chica = pociones[10] ?? 0;
+    int grande = pociones[20] ?? 0;
+
+    return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppBar(
+        backgroundColor:
+            isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        title: const Text(
+          "🧪 Tus Pociones",
+          style: TextStyle(
+            color: Colors.lightBlueAccent,
+            fontWeight: FontWeight.bold,
+            fontSize: 21,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.amber),
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 24),
+            _buildPocionTile(
+              context,
+              valor: 10,
+              nombre: "Poción de Stamina (10)",
+              cantidad: chica,
+              color: Colors.lightBlueAccent,
+              icon: Icons.local_drink,
+              descripcion: "Restaura +10 de stamina instantáneamente.",
+            ),
+            const SizedBox(height: 12),
+            _buildPocionTile(
+              context,
+              valor: 20,
+              nombre: "Poción de Stamina (20)",
+              cantidad: grande,
+              color: Colors.indigoAccent,
+              icon: Icons.science_rounded,
+              descripcion: "Restaura +20 de stamina instantáneamente.",
+            ),
+            const SizedBox(height: 32),
+            (chica == 0 && grande == 0)
+                ? const Center(
+                    child: Text(
+                      "No tienes pociones todavía.",
+                      style: TextStyle(color: Colors.amber, fontSize: 17),
+                    ),
+                  )
+                : Container(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPocionTile(BuildContext context,
+      {required int valor,
+      required String nombre,
+      required int cantidad,
+      required Color color,
+      required IconData icon,
+      required String descripcion}) {
+    final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
+    return Card(
+      color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.09),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 3),
+      child: ListTile(
+        leading: Icon(icon, size: 34, color: color),
+        title: Text(nombre,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: color,
+              fontSize: 17,
+            )),
+        subtitle: Text(descripcion,
+            style: TextStyle(
+              color: isDark ? Colors.white70 : Colors.black87,
+              fontSize: 13,
+            )),
+        trailing: InkWell(
+          onTap: () => _confirmarUsoPocion(context, valor),
+          child: CircleAvatar(
+            backgroundColor: color,
+            radius: 18,
+            child: Text(
+              "$cantidad",
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15),
+            ),
+          ),
+        ),
       ),
     );
   }
