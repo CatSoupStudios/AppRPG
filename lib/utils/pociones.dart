@@ -1,37 +1,46 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-// Gana una poción del valor que le pongas (10 o 20)
+// Siempre guarda SOLO como 'pocion_10', 'pocion_20'
 Future<void> ganarPocion(int valor) async {
   final prefs = await SharedPreferences.getInstance();
-  final pocionesRaw = prefs.getString('pociones_json') ?? '{}';
+  final raw = prefs.getString('pociones_json') ?? '{}';
 
-  // Decodificar JSON a Map<String, dynamic>
-  Map<String, dynamic> tempMap = jsonDecode(pocionesRaw);
+  Map<String, dynamic> tempMap = {};
+  try {
+    tempMap = jsonDecode(raw);
+  } catch (_) {}
 
-  // Convertir a Map<int, int>
-  Map<int, int> pociones = tempMap.map(
-    (key, value) => MapEntry(int.parse(key), value as int),
-  );
+  String clave = 'pocion_$valor';
+  tempMap[clave] = (tempMap[clave] ?? 0) + 1;
 
-  // Sumar la pocion ganada
-  pociones[valor] = (pociones[valor] ?? 0) + 1;
-
-  // Guardar de nuevo en prefs con claves como String
-  await prefs.setString('pociones_json',
-      jsonEncode(pociones.map((k, v) => MapEntry(k.toString(), v))));
+  await prefs.setString('pociones_json', jsonEncode(tempMap));
+  await prefs.setString('pociones_inventario', jsonEncode(tempMap));
 }
 
-// Devuelve un Map<int, int> (clave=valor poción, valor=cantidad)
+// Lee ambos formatos, pero **solo suma una vez cada clave**
 Future<Map<int, int>> obtenerPociones() async {
   final prefs = await SharedPreferences.getInstance();
-  final pocionesRaw = prefs.getString('pociones_json') ?? '{}';
+  final raw = prefs.getString('pociones_json') ?? '{}';
 
-  final Map<String, dynamic> data = jsonDecode(pocionesRaw);
-  return data.map((k, v) => MapEntry(int.parse(k), v as int));
+  final Map<String, dynamic> data = jsonDecode(raw);
+
+  Map<int, int> resultado = {};
+  data.forEach((k, v) {
+    int? claveInt;
+    if (k.startsWith('pocion_')) {
+      claveInt = int.tryParse(k.replaceFirst('pocion_', ''));
+    } else if (int.tryParse(k) != null) {
+      // Si queda algún int viejo por migración
+      claveInt = int.parse(k);
+    }
+    if (claveInt != null && v is int) {
+      resultado[claveInt] = v;
+    }
+  });
+  return resultado;
 }
 
-// Usa una poción de cierto valor (si tienes)
 Future<bool> usarPocion(int valor) async {
   final prefs = await SharedPreferences.getInstance();
   final pociones = await obtenerPociones();
@@ -43,15 +52,21 @@ Future<bool> usarPocion(int valor) async {
       pociones.remove(valor);
     }
 
-    await prefs.setString('pociones_json',
-        jsonEncode(pociones.map((k, v) => MapEntry(k.toString(), v))));
+    // Al guardar, solo usa el formato nuevo
+    Map<String, dynamic> tempMap = {};
+    pociones.forEach((k, v) {
+      tempMap['pocion_$k'] = v;
+    });
+
+    await prefs.setString('pociones_json', jsonEncode(tempMap));
+    await prefs.setString('pociones_inventario', jsonEncode(tempMap));
     return true;
   }
   return false;
 }
 
-// Para debug: resetea todas las pociones
 Future<void> resetPociones() async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString('pociones_json', '{}');
+  await prefs.setString('pociones_inventario', '{}');
 }

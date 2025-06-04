@@ -17,7 +17,7 @@ class PantallaMochila extends StatefulWidget {
 class _PantallaMochilaState extends State<PantallaMochila>
     with SingleTickerProviderStateMixin {
   int monedas = 0;
-  Map<int, int> pociones = {};
+  Map<int, int> pociones = {}; // Mantiene Map<int, int> para compatibilidad
   List<Map<String, dynamic>> bannersComprados = [];
   bool cargando = true;
   late AnimationController _controller;
@@ -39,19 +39,35 @@ class _PantallaMochilaState extends State<PantallaMochila>
     super.dispose();
   }
 
+  // Solución: lee pociones como int y como string para compatibilidad
   Future<void> cargarInventario() async {
     final prefs = await SharedPreferences.getInstance();
     final totalMonedas = prefs.getInt('monedas') ?? 0;
-    final totalPociones = await obtenerPociones();
+
+    final inventarioStr = prefs.getString('pociones_inventario');
+    Map<int, int> totalPociones = {};
+    if (inventarioStr != null) {
+      final Map<String, dynamic> temp = json.decode(inventarioStr);
+      for (var k in temp.keys) {
+        if (int.tryParse(k) != null) {
+          // Formato clásico: "10", "20"
+          totalPociones[int.parse(k)] = temp[k] as int;
+        } else if (k.startsWith('pocion_')) {
+          // Formato tienda: "pocion_10", "pocion_20"
+          final valor = int.tryParse(k.replaceFirst('pocion_', ''));
+          if (valor != null) totalPociones[valor] = temp[k] as int;
+        }
+      }
+    }
+
     final bannersStrings = prefs.getStringList('banners_comprados') ?? [];
     final fondo = prefs.getString('banner_fondo');
 
-    // 🔥🔥 FIX para evitar errores de widget desmontado 🔥🔥
     if (!mounted) return;
 
     setState(() {
       monedas = totalMonedas;
-      pociones = totalPociones;
+      pociones = totalPociones; // ¡Map<int, int> para todo!
       bannersComprados = bannersStrings
           .map((e) => json.decode(e) as Map<String, dynamic>)
           .toList();
@@ -123,7 +139,9 @@ class _PantallaMochilaState extends State<PantallaMochila>
   }
 
   Widget _buildResumenInventario(BuildContext context) {
-    int totalPociones = (pociones[10] ?? 0) + (pociones[20] ?? 0);
+    int chica = pociones[10] ?? 0;
+    int grande = pociones[20] ?? 0;
+    int totalPociones = chica + grande;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(top: 32, left: 0, right: 0, bottom: 0),
@@ -531,6 +549,21 @@ class _PantallaPocionesState extends State<PantallaPociones> {
   }
 
   Future<void> _confirmarUsoPocion(BuildContext context, int valor) async {
+    // Checa stamina antes de permitir el uso
+    int actual = await getStamina();
+    if (actual >= staminaMax) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No puedes usar esta poción porque tienes el 100% de tu stamina.',
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.amber[800],
+        ),
+      );
+      return;
+    }
+
     if ((pociones[valor] ?? 0) <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No tienes esa poción disponible')),
