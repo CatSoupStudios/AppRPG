@@ -125,6 +125,8 @@ class _PantallaTiendaState extends State<PantallaTienda>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
         'pociones_inventario', json.encode(inventarioPociones));
+    await prefs.setString(
+        'pociones_json', json.encode(inventarioPociones)); // <-- ¡Importante!
   }
 
   Future<void> comprarBanner(Map<String, dynamic> banner) async {
@@ -228,7 +230,6 @@ class _PantallaTiendaState extends State<PantallaTienda>
     final prefs = await SharedPreferences.getInstance();
     final oro = prefs.getInt('monedas') ?? 0;
     if (pocion['moneda'] == "usd") {
-      // Futuro: lógica de pago real
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Disponible próximamente 🚧')),
       );
@@ -236,9 +237,11 @@ class _PantallaTiendaState extends State<PantallaTienda>
     }
     if (oro >= pocion['precio']) {
       final nuevoOro = (oro - pocion['precio']).toInt();
-      // Suma la poción al inventario
-      final id = pocion['id'];
-      inventarioPociones[id] = (inventarioPociones[id] ?? 0) + 1;
+
+      // 👇 SIEMPRE GUARDAR CON LA CLAVE 'pocion_XX'
+      final id = pocion['id'].toString();
+      final clave = id.startsWith('pocion_') ? id : 'pocion_$id';
+      inventarioPociones[clave] = (inventarioPociones[clave] ?? 0) + 1;
       await guardarInventarioPociones();
       await prefs.setInt('monedas', nuevoOro);
 
@@ -661,9 +664,10 @@ class _PantallaTiendaState extends State<PantallaTienda>
       itemCount: pociones.length,
       itemBuilder: (context, index) {
         final pocion = pociones[index];
-        final id = pocion['id'];
+        final id = pocion['id'].toString();
+        final clave = id.startsWith('pocion_') ? id : 'pocion_$id';
         final esPremium = pocion['moneda'] == "usd";
-        final cantidad = inventarioPociones[id] ?? 0;
+        final cantidad = inventarioPociones[clave] ?? 0;
         return Card(
           elevation: 4,
           color: isDark ? AppColors.darkCard : AppColors.lightCard,

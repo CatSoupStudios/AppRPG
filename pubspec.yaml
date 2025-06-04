@@ -39,6 +39,13 @@ flutter:
     - assets/avatars/barbaro/
     - assets/avatars/nigromante/
     - assets/avatars/picaro/
+    - assets/avatars/guardabosques/
+    - assets/avatars/hechicero/
+    - assets/avatars/invocador/
+    - assets/avatars/artificiero/
+    - assets/avatars/bardo/
+    - assets/avatars/draconido/
+    - assets/avatars/brujo/
     - assets/sounds/sword-tap.mp3
     - assets/animations/palimita.json
     - assets/animations/confeti.json

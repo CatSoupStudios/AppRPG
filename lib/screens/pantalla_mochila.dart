@@ -17,7 +17,7 @@ class PantallaMochila extends StatefulWidget {
 class _PantallaMochilaState extends State<PantallaMochila>
     with SingleTickerProviderStateMixin {
   int monedas = 0;
-  Map<int, int> pociones = {}; // Mantiene Map<int, int> para compatibilidad
+  Map<int, int> pociones = {};
   List<Map<String, dynamic>> bannersComprados = [];
   bool cargando = true;
   late AnimationController _controller;
@@ -39,21 +39,17 @@ class _PantallaMochilaState extends State<PantallaMochila>
     super.dispose();
   }
 
-  // Solución: lee pociones como int y como string para compatibilidad
   Future<void> cargarInventario() async {
     final prefs = await SharedPreferences.getInstance();
     final totalMonedas = prefs.getInt('monedas') ?? 0;
 
+    // SOLO acepta formato 'pocion_XX'
     final inventarioStr = prefs.getString('pociones_inventario');
     Map<int, int> totalPociones = {};
     if (inventarioStr != null) {
       final Map<String, dynamic> temp = json.decode(inventarioStr);
       for (var k in temp.keys) {
-        if (int.tryParse(k) != null) {
-          // Formato clásico: "10", "20"
-          totalPociones[int.parse(k)] = temp[k] as int;
-        } else if (k.startsWith('pocion_')) {
-          // Formato tienda: "pocion_10", "pocion_20"
+        if (k.startsWith('pocion_')) {
           final valor = int.tryParse(k.replaceFirst('pocion_', ''));
           if (valor != null) totalPociones[valor] = temp[k] as int;
         }
@@ -67,7 +63,7 @@ class _PantallaMochilaState extends State<PantallaMochila>
 
     setState(() {
       monedas = totalMonedas;
-      pociones = totalPociones; // ¡Map<int, int> para todo!
+      pociones = totalPociones;
       bannersComprados = bannersStrings
           .map((e) => json.decode(e) as Map<String, dynamic>)
           .toList();
@@ -95,7 +91,6 @@ class _PantallaMochilaState extends State<PantallaMochila>
       context,
       MaterialPageRoute(builder: (_) => PantallaPociones(pociones: pociones)),
     );
-    // Al volver, recarga inventario
     cargarInventario();
   }
 
@@ -549,7 +544,6 @@ class _PantallaPocionesState extends State<PantallaPociones> {
   }
 
   Future<void> _confirmarUsoPocion(BuildContext context, int valor) async {
-    // Checa stamina antes de permitir el uso
     int actual = await getStamina();
     if (actual >= staminaMax) {
       ScaffoldMessenger.of(context).showSnackBar(

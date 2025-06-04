@@ -18,7 +18,7 @@ Future<void> ganarPocion(int valor) async {
   await prefs.setString('pociones_inventario', jsonEncode(tempMap));
 }
 
-// Lee ambos formatos, pero **solo suma una vez cada clave**
+// Lee SOLO formato nuevo
 Future<Map<int, int>> obtenerPociones() async {
   final prefs = await SharedPreferences.getInstance();
   final raw = prefs.getString('pociones_json') ?? '{}';
@@ -27,15 +27,11 @@ Future<Map<int, int>> obtenerPociones() async {
 
   Map<int, int> resultado = {};
   data.forEach((k, v) {
-    int? claveInt;
     if (k.startsWith('pocion_')) {
-      claveInt = int.tryParse(k.replaceFirst('pocion_', ''));
-    } else if (int.tryParse(k) != null) {
-      // Si queda algún int viejo por migración
-      claveInt = int.parse(k);
-    }
-    if (claveInt != null && v is int) {
-      resultado[claveInt] = v;
+      int? claveInt = int.tryParse(k.replaceFirst('pocion_', ''));
+      if (claveInt != null && v is int) {
+        resultado[claveInt] = v;
+      }
     }
   });
   return resultado;
